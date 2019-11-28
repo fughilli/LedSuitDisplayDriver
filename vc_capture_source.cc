@@ -30,8 +30,10 @@ bool VcCaptureSource::ConfigureCaptureRegion(int x, int y, int width,
     }
 
     capture_buffer_ = std::make_shared<ImageBuffer>();
-    capture_stride_ = kImageBytesPerPixel * AlignTo(width, kVcBufferAlignment);
-    capture_buffer_->buffer.resize(capture_stride_ * height, 0);
+    capture_buffer_->row_stride =
+        kImageBytesPerPixel * AlignTo(width, kVcBufferAlignment);
+    capture_buffer_->buffer.resize(capture_buffer_->row_stride * height, 0);
+    capture_buffer_->bytes_per_pixel = kImageBytesPerPixel;
 
     capture_configured_ = true;
     return true;
@@ -64,7 +66,7 @@ bool VcCaptureSource::Capture() {
 
     result = vc_dispmanx_resource_read_data(
         vc_image_buffer_handle_, &capture_rect_, capture_buffer_->buffer.data(),
-        capture_stride_);
+        capture_buffer_->row_stride);
 
     if (result != 0) {
         std::cerr

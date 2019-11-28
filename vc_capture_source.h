@@ -9,13 +9,15 @@
 
 #include "bcm_host.h"
 
-#define GUARDED_BY(x) 
+#define GUARDED_BY(x)
 
 namespace led_driver {
 
 // Wrapper for a raw buffer of image data.
 struct ImageBuffer {
     std::vector<uint8_t> buffer;
+    ssize_t row_stride;
+    ssize_t bytes_per_pixel;
 };
 
 // Interface for objects that can receive image buffers from a
@@ -34,17 +36,13 @@ class VcCaptureSource {
 
     template <typename... A>
     static std::shared_ptr<VcCaptureSource> Create(A&&... args) {
-        auto vc_capture_source =
-            std::make_shared<VcCaptureSource>(std::forward<A>(args)...);
+        auto vc_capture_source = std::shared_ptr<VcCaptureSource>(
+            new VcCaptureSource(std::forward<A>(args)...));
         if (!vc_capture_source->Initialize()) {
             return nullptr;
         }
         return vc_capture_source;
     }
-
-   private:
-    VcCaptureSource(std::shared_ptr<ImageBufferReceiverInterface> receiver)
-        : receiver_(std::move(receiver)) {}
 
     ~VcCaptureSource() {
         // Close the image buffer handle if we have one.
@@ -57,6 +55,10 @@ class VcCaptureSource {
             vc_dispmanx_display_close(vc_display_handle_);
         }
     }
+
+   private:
+    VcCaptureSource(std::shared_ptr<ImageBufferReceiverInterface> receiver)
+        : receiver_(std::move(receiver)) {}
 
     // Initializes the capture source.
     bool Initialize();
@@ -84,7 +86,6 @@ class VcCaptureSource {
     // The capture region rectangle.
     VC_RECT_T capture_rect_;
 
-    ssize_t capture_stride_;
     // The image buffer to collect image bytes into.
     std::shared_ptr<ImageBuffer> capture_buffer_;
 };
