@@ -9,6 +9,15 @@ cc_library(
     linkstatic = 1,
 )
 
+cc_library(
+    name = "spi_driver",
+    srcs = ["spi_driver.cc"],
+    hdrs = ["spi_driver.h"],
+    deps = ["@org_llvm_libcxx//:libcxx"],
+    data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
+    linkstatic = 1,
+)
+
 cc_binary(
     name = "led_driver",
     srcs = ["led_driver.cc"],
