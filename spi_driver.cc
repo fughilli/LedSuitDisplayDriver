@@ -70,6 +70,7 @@ SpiDriver::~SpiDriver() {
 bool SpiDriver::Transfer(std::vector<uint8_t> buffer) {
     // Configure the SPI transfer IOCTL block.
     struct spi_ioc_transfer transfer_config;
+    memset(&transfer_config, 0, sizeof(transfer_config));
     transfer_config.tx_buf = reinterpret_cast<unsigned long>(buffer.data());
     transfer_config.rx_buf = 0;
     transfer_config.len = buffer.size();
