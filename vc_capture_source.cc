@@ -31,7 +31,7 @@ bool VcCaptureSource::ConfigureCaptureRegion(int x, int y, int width,
 
     capture_buffer_ = std::make_shared<ImageBuffer>();
     capture_buffer_->row_stride =
-        kImageBytesPerPixel * AlignTo(width, kVcBufferAlignment);
+        kImageBytesPerPixel * AlignTo(mode_info_.width, kVcBufferAlignment);
     capture_buffer_->buffer.resize(capture_buffer_->row_stride * height, 0);
     capture_buffer_->bytes_per_pixel = kImageBytesPerPixel;
 
