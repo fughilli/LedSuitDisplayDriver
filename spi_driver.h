@@ -65,10 +65,10 @@ class SpiDriver {
     // The bits per word for this SPI device.
     uint8_t bits_per_word_;
     // The maximum transfer speed, in Hz, for this SPI device.
-    uint8_t speed_hz_;
+    uint32_t speed_hz_;
     // The number of microseconds to delay in between transactions for this SPI
     // device.
-    uint8_t delay_us_;
+    uint16_t delay_us_;
 };
 
 }  // namespace led_driver
