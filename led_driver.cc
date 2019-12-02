@@ -23,11 +23,10 @@ void TransposeRedGreenPixel(uint8_t* pixel) {
     *(pixel + 1) = temp;
 }
 
-void TransposeRedGreen(std::vector<uint8_t> pixels) {
-    auto pixel_ptr = pixels.begin();
-    while (pixel_ptr < pixels.end()) {
-        TransposeRedGreenPixel(&(*pixel_ptr));
-        pixel_ptr += 3;
+void TransposeRedGreen(uint8_t* pixels, ssize_t num_pixels) {
+    while (num_pixels--) {
+        TransposeRedGreenPixel(pixels);
+        pixels += 3;
     }
 }
 }  // namespace
@@ -35,14 +34,15 @@ void TransposeRedGreen(std::vector<uint8_t> pixels) {
 class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
    public:
     SpiImageBufferReceiver(std::shared_ptr<SpiDriver> spi_driver)
-        : spi_driver_(spi_driver) {}
+        : spi_driver_(std::move(spi_driver)) {}
     void Receive(std::shared_ptr<ImageBuffer> image_buffer) override {
-        std::vector<uint8_t> output_buffer;
-        output_buffer.reserve(kLedBufferLength + 2);
+        output_buffer_.resize(kLedBufferLength + 2, 0);
 
         // LED data address + mode.
-        output_buffer.push_back(0x80);
-        output_buffer.push_back(0x00);
+        output_buffer_[0] = 0x80;
+        output_buffer_[1] = 0x00;
+
+        auto end_iter = output_buffer_.begin() + 2;
 
         ssize_t pixel_stride_x = (kRasterWidth - 1) / (kLedGridWidth - 1);
         ssize_t pixel_stride_y = (kRasterHeight - 1) / (kLedGridHeight - 1);
@@ -56,20 +56,21 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
                                   : ((kRasterWidth - 1) - j);
 
                 ssize_t pixel_index =
-                    h_index * kLedChannels +
-                    (i / pixel_stride_y) * image_buffer->row_stride;
+                    h_index * kLedChannels + i * image_buffer->row_stride;
 
                 // Copy pixel from the sampling location to the end of the
                 // output buffer
                 std::copy(
-                    output_buffer.end(),
                     image_buffer->buffer.begin() + pixel_index,
-                    image_buffer->buffer.begin() + pixel_index + kLedChannels);
+                    image_buffer->buffer.begin() + pixel_index + kLedChannels,
+                    end_iter);
+
+                end_iter += 3;
             }
         }
 
-        TransposeRedGreen(output_buffer);
-        spi_driver_->Transfer(output_buffer);
+        TransposeRedGreen(&(output_buffer_[2]), kNumLeds);
+        spi_driver_->Transfer(output_buffer_);
     }
 
    private:
@@ -79,6 +80,7 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
     constexpr static ssize_t kLedGridWidth = 12;
     constexpr static ssize_t kLedGridHeight = 12;
     std::shared_ptr<SpiDriver> spi_driver_;
+    std::vector<uint8_t> output_buffer_;
 };
 
 int main(int argc, char* argv[]) {
