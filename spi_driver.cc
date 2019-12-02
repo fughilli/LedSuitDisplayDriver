@@ -23,9 +23,18 @@ bool SpiDriver::Initialize() {
         return false;
     }
 
+    uint8_t mode;
+    uint8_t bits_per_word;
+    uint32_t speed_hz;
+
     if (ioctl(fd_, SPI_IOC_WR_MODE, &mode_) == -1) {
         std::cerr << "Failed to set SPI mode";
         return false;
+    }
+
+    if (ioctl(fd_, SPI_IOC_RD_MODE, &mode) == 0) {
+        std::cout << "Configured SPI with mode " << static_cast<int>(mode)
+                  << std::endl;
     }
 
     if (ioctl(fd_, SPI_IOC_WR_BITS_PER_WORD, &bits_per_word_) == -1) {
@@ -33,9 +42,19 @@ bool SpiDriver::Initialize() {
         return false;
     }
 
+    if (ioctl(fd_, SPI_IOC_RD_BITS_PER_WORD, &bits_per_word) == 0) {
+        std::cout << "Configured SPI bits per word = "
+                  << static_cast<int>(bits_per_word) << std::endl;
+    }
+
     if (ioctl(fd_, SPI_IOC_WR_MAX_SPEED_HZ, &speed_hz_) == -1) {
         std::cerr << "Failed to set SPI max speed";
         return false;
+    }
+
+    if (ioctl(fd_, SPI_IOC_RD_MAX_SPEED_HZ, &speed_hz) == 0) {
+        std::cout << "Configured SPI max speed as " << speed_hz << " Hz"
+                  << std::endl;
     }
 
     return true;
