@@ -67,7 +67,7 @@ SpiDriver::~SpiDriver() {
     }
 }
 
-bool SpiDriver::Transfer(std::vector<uint8_t> buffer) {
+bool SpiDriver::Transfer(const std::vector<uint8_t>& buffer) {
     // Configure the SPI transfer IOCTL block.
     struct spi_ioc_transfer transfer_config;
     memset(&transfer_config, 0, sizeof(transfer_config));

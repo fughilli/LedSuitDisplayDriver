@@ -39,7 +39,7 @@ class SpiDriver {
     ~SpiDriver();
 
     // Transfers a buffer of data to the SPI slave device.
-    bool Transfer(std::vector<uint8_t> buffer);
+    bool Transfer(const std::vector<uint8_t>& buffer);
 
    private:
     SpiDriver(std::string device, ClockPolarity polarity, ClockPhase phase,
