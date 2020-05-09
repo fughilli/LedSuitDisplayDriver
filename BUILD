@@ -1,11 +1,23 @@
+load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
+
 cc_library(
     name = "vc_capture_source",
     srcs = ["vc_capture_source.cc"],
     hdrs = ["vc_capture_source.h"],
-    deps = ["@org_llvm_libcxx//:libcxx"],
+    copts = [
+        "-isystem",
+        "external/raspberry_pi/sysroot/opt/vc/include",
+        "-isystem",
+        "external/raspberry_pi/sysroot/opt/vc/include/interface/vcos/pthreads",
+        "-isystem",
+        "external/raspberry_pi/sysroot/opt/vc/include/interface/vmcs_host/linux",
+        "-Wthread-safety",
+    ],
     data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
-    copts = ["-isystem", "external/raspberry_pi/sysroot/opt/vc/include", "-isystem", "external/raspberry_pi/sysroot/opt/vc/include/interface/vcos/pthreads", "-isystem", "external/raspberry_pi/sysroot/opt/vc/include/interface/vmcs_host/linux", "-Wthread-safety"],
-    linkopts = ["-Lexternal/raspberry_pi/sysroot/opt/vc/lib", "-lbcm_host"],
+    linkopts = [
+        "-Lexternal/raspberry_pi/sysroot/opt/vc/lib",
+        "-lbcm_host",
+    ],
     linkstatic = 1,
 )
 
@@ -13,7 +25,6 @@ cc_library(
     name = "spi_driver",
     srcs = ["spi_driver.cc"],
     hdrs = ["spi_driver.h"],
-    deps = ["@org_llvm_libcxx//:libcxx"],
     data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
     linkstatic = 1,
 )
@@ -21,9 +32,48 @@ cc_library(
 cc_binary(
     name = "led_driver",
     srcs = ["led_driver.cc"],
-    deps = ["@org_llvm_libcxx//:libcxx", ":vc_capture_source", ":spi_driver"],
+    copts = [
+        "-isystem",
+        "external/raspberry_pi/sysroot/opt/vc/include",
+        "-isystem",
+        "external/raspberry_pi/sysroot/opt/vc/include/interface/vcos/pthreads",
+        "-isystem",
+        "external/raspberry_pi/sysroot/opt/vc/include/interface/vmcs_host/linux",
+        "-Wthread-safety",
+    ],
     data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
-    copts = ["-isystem", "external/raspberry_pi/sysroot/opt/vc/include", "-isystem", "external/raspberry_pi/sysroot/opt/vc/include/interface/vcos/pthreads", "-isystem", "external/raspberry_pi/sysroot/opt/vc/include/interface/vmcs_host/linux", "-Wthread-safety"],
-    linkopts = ["-Lexternal/raspberry_pi/sysroot/opt/vc/lib", "-lbcm_host"],
+    linkopts = [
+        "-Lexternal/raspberry_pi/sysroot/opt/vc/lib",
+        "-lbcm_host",
+    ],
     linkstatic = 1,
+    deps = [
+        ":spi_driver",
+        ":vc_capture_source",
+        "@org_llvm_libcxx//:libcxx",
+    ],
+)
+
+proto_library(
+    name = "led_mapping_proto",
+    srcs = ["led_mapping.proto"],
+)
+
+cc_proto_library(
+    name = "led_mapping_cc_proto",
+    deps = [":led_mapping_proto"],
+)
+
+py_proto_library(
+    name = "led_mapping_py_proto",
+    srcs = ["led_mapping.proto"],
+)
+
+py_binary(
+    name = "mapping_generator",
+    srcs = ["mapping_generator.py"],
+    data = ["generate.py"],
+    deps = [
+        ":led_mapping_py_proto",
+    ],
 )
