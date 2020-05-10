@@ -1,13 +1,23 @@
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <utility>
 #include <vector>
 
+#include "led_driver/led_mapping.pb.h"
 #include "spi_driver.h"
 #include "vc_capture_source.h"
+
+#include "absl/flags/flag.h"
+#include "absl/flags/parse.h"
+
+ABSL_FLAG(std::string, mapping_file, "mapping.binaryproto",
+          "File containing the LED mapping");
 
 namespace led_driver {
 
 namespace {
+
 const std::string kDevice = "/dev/spidev0.0";
 constexpr SpiDriver::ClockPolarity kClockPolarity =
     SpiDriver::ClockPolarity::IDLE_LOW;
@@ -68,8 +78,10 @@ std::vector<Coordinate> ComputeCoordinatesLinear() {
 
 class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
 public:
-  SpiImageBufferReceiver(std::shared_ptr<SpiDriver> spi_driver)
-      : spi_driver_(std::move(spi_driver)) {}
+  SpiImageBufferReceiver(std::shared_ptr<SpiDriver> spi_driver,
+                         std::vector<Coordinate> coordinates)
+      : spi_driver_(std::move(spi_driver)),
+        coordinates_(std::move(coordinates)) {}
   void Receive(std::shared_ptr<ImageBuffer> image_buffer) override {
     output_buffer_.resize(kLedBufferLength + 2, 0);
 
@@ -79,7 +91,7 @@ public:
 
     auto end_iter = output_buffer_.begin() + 2;
 
-    for (const auto coordinate : ComputeCoordinatesLinear()) {
+    for (const auto coordinate : coordinates_) {
       ssize_t pixel_index = coordinate.first * kLedChannels +
                             coordinate.second * image_buffer->row_stride;
 
@@ -102,9 +114,29 @@ private:
   constexpr static ssize_t kLedBufferLength = kNumLeds * kLedChannels;
   std::shared_ptr<SpiDriver> spi_driver_;
   std::vector<uint8_t> output_buffer_;
+  std::vector<Coordinate> coordinates_;
 };
 
 int main(int argc, char *argv[]) {
+  absl::ParseCommandLine(argc, argv);
+
+  std::ifstream mapping_file;
+  mapping_file.open(absl::GetFlag(FLAGS_mapping_file));
+  ledsuit::mapping::Mapping mapping;
+  mapping.ParseFromIstream(&mapping_file);
+
+  std::vector<Coordinate> coordinates;
+  coordinates.reserve(72);
+  for (const auto &sample : mapping.samples()) {
+    if (!(sample.has_x() && sample.has_y())) {
+      std::cerr << "Sample missing component";
+      continue;
+    }
+    coordinates.emplace_back(
+        static_cast<ssize_t>(sample.x() * (kRasterWidth - 1)),
+        static_cast<ssize_t>(sample.y() * (kRasterHeight - 1)));
+  }
+
   auto spi_driver = SpiDriver::Create(kDevice, kClockPolarity, kClockPhase,
                                       kBitsPerWord, kSpeedHz, kDelayUs);
 
@@ -113,7 +145,7 @@ int main(int argc, char *argv[]) {
   }
 
   auto capture_source = VcCaptureSource::Create(
-      std::make_shared<SpiImageBufferReceiver>(spi_driver));
+      std::make_shared<SpiImageBufferReceiver>(spi_driver, coordinates));
 
   if (capture_source == nullptr) {
     return 1;

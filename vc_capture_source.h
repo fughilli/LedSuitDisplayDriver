@@ -9,8 +9,6 @@
 
 #include "bcm_host.h"
 
-#define GUARDED_BY(x)
-
 namespace led_driver {
 
 // Wrapper for a raw buffer of image data.
@@ -65,7 +63,7 @@ class VcCaptureSource {
 
     // Whether or not the source has been initialized.
     std::mutex initialized_mu_;
-    bool initialized_ GUARDED_BY(initialized_mu_);
+    bool initialized_;
 
     // Handles to VideoCore resources.
     DISPMANX_RESOURCE_HANDLE_T vc_image_buffer_handle_;
@@ -81,7 +79,7 @@ class VcCaptureSource {
 
     // Whether or not the capture region has been configured.
     std::mutex capture_configured_mu_;
-    bool capture_configured_ GUARDED_BY(capture_configured_mu_);
+    bool capture_configured_;
 
     // The capture region rectangle.
     VC_RECT_T capture_rect_;

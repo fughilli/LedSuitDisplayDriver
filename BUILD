@@ -48,8 +48,11 @@ cc_binary(
     ],
     linkstatic = 1,
     deps = [
+        ":led_mapping_cc_proto",
         ":spi_driver",
         ":vc_capture_source",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
         "@org_llvm_libcxx//:libcxx",
     ],
 )
