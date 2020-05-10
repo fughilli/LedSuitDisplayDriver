@@ -169,7 +169,6 @@ int main(int argc, char *argv[]) {
   mapping.ParseFromIstream(&mapping_file);
 
   std::vector<Coordinate> coordinates;
-  coordinates.reserve(72);
   for (const auto &sample : mapping.samples()) {
     if (!(sample.has_x() && sample.has_y())) {
       std::cerr << "Sample missing component";

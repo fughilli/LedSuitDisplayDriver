@@ -56,7 +56,7 @@ class VcCaptureSource {
 
    private:
     VcCaptureSource(std::shared_ptr<ImageBufferReceiverInterface> receiver)
-        : receiver_(std::move(receiver)) {}
+        : initialized_(false), receiver_(std::move(receiver)) {}
 
     // Initializes the capture source.
     bool Initialize();
