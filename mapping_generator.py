@@ -89,8 +89,8 @@ class MappingGenerator(object):
 
     def ExportMapping(self):
         samples = numpy.array(list(self.generate_module.GenerateSampling()))
-        min_sample = numpy.min(samples)
-        max_sample = numpy.max(samples)
+        min_sample = numpy.amin(samples, axis=0)
+        max_sample = numpy.amax(samples, axis=0)
         range_sample = max_sample - min_sample
 
         normalized_samples = numpy.divide(samples - min_sample, range_sample)
