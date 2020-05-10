@@ -183,14 +183,22 @@ int main(int argc, char *argv[]) {
                                       kBitsPerWord, kSpeedHz, kDelayUs);
 
   if (spi_driver == nullptr) {
+    std::cerr << "Failed to create SPI driver" << std::endl;
     return 1;
   }
 
-  auto capture_source =
-      VcCaptureSource::Create(std::make_shared<SpiImageBufferReceiver>(
-          spi_driver, coordinates, absl::GetFlag(FLAGS_intensity)));
+  auto image_buffer_receiver = std::make_shared<SpiImageBufferReceiver>(
+      spi_driver, coordinates, absl::GetFlag(FLAGS_intensity));
+
+  if (image_buffer_receiver == nullptr) {
+    std::cerr << "Failed to create image buffer receiver" << std::endl;
+    return 1;
+  }
+
+  auto capture_source = VcCaptureSource::Create(image_buffer_receiver);
 
   if (capture_source == nullptr) {
+    std::cerr << "Failed to create capture source" << std::endl;
     return 1;
   }
 
