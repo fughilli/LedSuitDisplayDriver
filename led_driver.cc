@@ -5,11 +5,14 @@
 #include <vector>
 
 #include "led_driver/led_mapping.pb.h"
+#include "periodic.h"
+#include "projectm_controller.h"
 #include "spi_driver.h"
 #include "vc_capture_source.h"
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/time/clock.h"
 
 struct LedIntensity {
   LedIntensity(float intensity) : intensity(intensity) {}
@@ -160,6 +163,39 @@ private:
   LedIntensity intensity_;
 };
 
+class VisualInterestProcessor : public ImageBufferReceiverInterface {
+public:
+  VisualInterestProcessor()
+      : periodic_timer_(kDebugPeriod, absl::Now().Milliseconds()) {}
+
+  void Receive(std::shared_ptr<ImageBuffer> image_buffer) override {
+    float visual_interest = CalculateVisualInterest(image_buffer->buffer);
+    if (periodic_timer_.IsDue(absl::Now().Milliseconds())) {
+      std::cerr << "Visual interest is " << visual_interest << std::endl;
+    }
+  }
+
+private:
+  constexpr static int64_t kDebugPeriod = 60000;
+
+  float CalculateVisualInterest(std::vector<uint8_t> &raw_image) {
+    if (previous_image_.size() != raw_image.size()) {
+      previous_image_ = raw_image;
+      return 0.0f;
+    }
+    int64_t delta_energy = 0;
+    for (int i = 0; i < raw_image.size(); ++i) {
+      delta_energy += math.pow(abs(raw_image[i] - previous_image_[i]));
+    }
+
+    previous_image_ = raw_image;
+    return static_cast<float>(delta_energy) / raw_image.size();
+  }
+
+  std::vector<uint8_t> previous_image_;
+  Periodic<int64_t> periodic_timer_;
+};
+
 int main(int argc, char *argv[]) {
   absl::ParseCommandLine(argc, argv);
 
@@ -187,6 +223,13 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  auto projectm_controller = ProjectmController::Create();
+
+  if (projectm_controller == nullptr) {
+    std::cerr << "Failed to create projectm controller" << std::endl;
+    return 1;
+  }
+
   auto image_buffer_receiver = std::make_shared<SpiImageBufferReceiver>(
       spi_driver, coordinates, absl::GetFlag(FLAGS_intensity));
 
@@ -195,7 +238,19 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto capture_source = VcCaptureSource::Create(image_buffer_receiver);
+  auto visual_interest_processor =
+      std::make_shared<VisualInterestProcessor>(projectm_controller);
+
+  if (visual_interest_processor == nullptr) {
+    std::cerr << "Failed to create visual interest processor" << std::endl;
+  }
+
+  auto image_buffer_receiver_multiplexer =
+      std::make_shared<ImageBufferReceiverMultiplexer>(
+          image_buffer_receiver, visual_interest_processor);
+
+  auto capture_source =
+      VcCaptureSource::Create(image_buffer_receiver_multiplexer);
 
   if (capture_source == nullptr) {
     std::cerr << "Failed to create capture source" << std::endl;
