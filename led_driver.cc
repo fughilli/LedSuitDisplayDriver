@@ -11,8 +11,32 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 
+struct LedIntensity {
+  LedIntensity(float intensity) : intensity(intensity) {}
+
+  float intensity;
+};
+
+std::string AbslUnparseFlag(LedIntensity intensity) {
+  return absl::UnparseFlag(intensity.intensity);
+}
+
+bool AbslParseFlag(const absl::string_view text, LedIntensity *intensity,
+                   std::string *error) {
+  if (!absl::ParseFlag(text, &intensity->intensity, error)) {
+    return false;
+  }
+  if (intensity->intensity < 0 || intensity->intensity > 1) {
+    *error = "intensity must be between 0 and 1";
+    return false;
+  }
+  return true;
+}
+
 ABSL_FLAG(std::string, mapping_file, "mapping.binaryproto",
           "File containing the LED mapping");
+ABSL_FLAG(LedIntensity, intensity, LedIntensity(1.0f),
+          "Scale factor for LED intensity");
 
 namespace led_driver {
 
@@ -40,6 +64,22 @@ void TransposeRedGreenPixel(uint8_t *pixel) {
 void TransposeRedGreen(uint8_t *pixels, ssize_t num_pixels) {
   while (num_pixels--) {
     TransposeRedGreenPixel(pixels);
+    pixels += 3;
+  }
+}
+
+void ScalePixelValue(uint8_t *pixel, float scale) {
+  if (scale < 0 || scale > 1) {
+    return;
+  }
+  for (int i = 0; i < 3; ++i) {
+    pixel[i] = (pixel[i] * scale);
+  }
+}
+
+void ScalePixelValues(uint8_t *pixels, float scale, ssize_t num_pixels) {
+  while (num_pixels--) {
+    ScalePixelValue(pixels, scale);
     pixels += 3;
   }
 }
@@ -79,9 +119,10 @@ std::vector<Coordinate> ComputeCoordinatesLinear() {
 class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
 public:
   SpiImageBufferReceiver(std::shared_ptr<SpiDriver> spi_driver,
-                         std::vector<Coordinate> coordinates)
+                         std::vector<Coordinate> coordinates,
+                         LedIntensity intensity)
       : spi_driver_(std::move(spi_driver)),
-        coordinates_(std::move(coordinates)) {}
+        coordinates_(std::move(coordinates)), intensity_(intensity) {}
   void Receive(std::shared_ptr<ImageBuffer> image_buffer) override {
     output_buffer_.resize(kLedBufferLength + 2, 0);
 
@@ -105,6 +146,7 @@ public:
     }
 
     TransposeRedGreen(&(output_buffer_[2]), kNumLeds);
+    ScalePixelValues(&(output_buffer_[2]), intensity_.intensity, kNumLeds);
     spi_driver_->Transfer(output_buffer_);
   }
 
@@ -115,6 +157,7 @@ private:
   std::shared_ptr<SpiDriver> spi_driver_;
   std::vector<uint8_t> output_buffer_;
   std::vector<Coordinate> coordinates_;
+  LedIntensity intensity_;
 };
 
 int main(int argc, char *argv[]) {
@@ -144,8 +187,9 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto capture_source = VcCaptureSource::Create(
-      std::make_shared<SpiImageBufferReceiver>(spi_driver, coordinates));
+  auto capture_source =
+      VcCaptureSource::Create(std::make_shared<SpiImageBufferReceiver>(
+          spi_driver, coordinates, absl::GetFlag(FLAGS_intensity)));
 
   if (capture_source == nullptr) {
     return 1;
