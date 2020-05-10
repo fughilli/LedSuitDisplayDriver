@@ -64,8 +64,8 @@ class MappingGenerator(object):
         self.ExportMapping()
 
     def ReloadGenerateScript(self):
-        print("Reloading script from {}: {}".format(
-            self.generate_file, open(self.generate_file).read()))
+        print("Reloading script from {}".format(
+            self.generate_file))
         generate_spec = importlib.util.spec_from_file_location(
             "generate", self.generate_file)
         generate_module = importlib.util.module_from_spec(generate_spec)
