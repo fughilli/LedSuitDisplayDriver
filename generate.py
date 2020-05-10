@@ -22,4 +22,4 @@ def GenerateEye(center, reverse, offset, offset_step):
 
 def GenerateSampling():
     return itertools.chain(GenerateEye(numpy.array((200, 250)), False, 1.5, 0),
-                           GenerateEye(numpy.array((650, 250)), True, 2.5, 2))
+                           GenerateEye(numpy.array((475, 250)), True, 2.5, 2))
