@@ -61,34 +61,6 @@ constexpr int kLedGridHeight = 13;
 
 using Coordinate = std::pair<ssize_t, ssize_t>;
 
-std::vector<Coordinate> ComputeCoordinatesSerpentine() {
-  std::vector<Coordinate> coordinates;
-
-  ssize_t pixel_stride_x = (kRasterWidth - 1) / (kLedGridWidth - 1);
-  ssize_t pixel_stride_y = (kRasterHeight - 1) / (kLedGridHeight - 1);
-
-  for (int i = 0; i < kRasterHeight; i += pixel_stride_y) {
-    for (int j = 0; j < kRasterWidth; j += pixel_stride_x) {
-      // Serpentine sampling, since the LED strip is placed zigzag to
-      // make a 2D raster
-      int h_index =
-          (((i / pixel_stride_y) % 2) == 0) ? j : ((kRasterWidth - 1) - j);
-
-      coordinates.emplace_back(h_index, i);
-    }
-  }
-
-  return coordinates;
-}
-
-std::vector<Coordinate> ComputeCoordinatesLinear() {
-  std::vector<Coordinate> coordinates;
-  for (int i = 0; i < 100; ++i) {
-    coordinates.emplace_back(i, 0);
-  }
-  return coordinates;
-}
-
 } // namespace
 
 class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
