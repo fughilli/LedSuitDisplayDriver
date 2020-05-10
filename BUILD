@@ -1,18 +1,21 @@
 load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
 
+VIDEOCORE_COPTS = [
+    "-isystem",
+    "external/raspberry_pi/sysroot/opt/vc/include",
+    "-isystem",
+    "external/raspberry_pi/sysroot/opt/vc/include/interface/vcos/pthreads",
+    "-isystem",
+    "external/raspberry_pi/sysroot/opt/vc/include/interface/vmcs_host/linux",
+]
+
 cc_library(
     name = "vc_capture_source",
     srcs = ["vc_capture_source.cc"],
     hdrs = ["vc_capture_source.h"],
     copts = [
-        "-isystem",
-        "external/raspberry_pi/sysroot/opt/vc/include",
-        "-isystem",
-        "external/raspberry_pi/sysroot/opt/vc/include/interface/vcos/pthreads",
-        "-isystem",
-        "external/raspberry_pi/sysroot/opt/vc/include/interface/vmcs_host/linux",
         "-Wthread-safety",
-    ],
+    ] + VIDEOCORE_COPTS,
     data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
     linkopts = [
         "-Lexternal/raspberry_pi/sysroot/opt/vc/lib",
@@ -56,15 +59,9 @@ cc_binary(
     srcs = ["led_driver.cc"],
     copts = [
         "-isystem",
-        "external/raspberry_pi/sysroot/opt/vc/include",
-        "-isystem",
-        "external/raspberry_pi/sysroot/opt/vc/include/interface/vcos/pthreads",
-        "-isystem",
-        "external/raspberry_pi/sysroot/opt/vc/include/interface/vmcs_host/linux",
-        "-isystem",
         "external/raspberry_pi/sysroot/usr/include",
         "-Wthread-safety",
-    ],
+    ] + VIDEOCORE_COPTS,
     data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
     linkopts = [
         "-Lexternal/raspberry_pi/sysroot/opt/vc/lib",
