@@ -43,6 +43,27 @@ cc_library(
 )
 
 cc_library(
+    name = "visual_interest_processor",
+    srcs = ["visual_interest_processor.cc"],
+    hdrs = ["visual_interest_processor.h"],
+    copts = [
+        "-Wthread-safety",
+    ] + VIDEOCORE_COPTS,
+    data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
+    linkopts = [
+        "-Lexternal/raspberry_pi/sysroot/opt/vc/lib",
+        "-lbcm_host",
+    ],
+    linkstatic = 1,
+    deps = [
+        ":periodic",
+        ":vc_capture_source",
+        ":projectm_controller",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+cc_library(
     name = "projectm_controller",
     srcs = ["projectm_controller.cc"],
     hdrs = ["projectm_controller.h"],
@@ -71,14 +92,13 @@ cc_binary(
     linkstatic = 1,
     deps = [
         ":led_mapping_cc_proto",
-        ":periodic",
         ":pixel_utils",
         ":projectm_controller",
         ":spi_driver",
         ":vc_capture_source",
+        ":visual_interest_processor",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/time",
         "@org_llvm_libcxx//:libcxx",
     ],
 )

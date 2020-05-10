@@ -2,13 +2,11 @@
 
 #include <iostream>
 
-#include "absl/types/span.h"
-
 namespace led_driver {
 
 bool ProjectmController::Initialize() {
   xdo_ = xdo_new(nullptr);
-  if (xdo == nullptr) {
+  if (xdo_ == nullptr) {
     std::cerr << "Connection to X server failed" << std::endl;
     return false;
   }
@@ -22,7 +20,7 @@ bool ProjectmController::Initialize() {
   Window *return_windows;
   unsigned int num_return_windows;
 
-  if (xdo_search_windows(xdo, &search_params, &return_windows,
+  if (xdo_search_windows(xdo_, &search_params, &return_windows,
                          &num_return_windows)) {
     std::cerr << "Failed to search windows" << std::endl;
     return false;
@@ -37,14 +35,14 @@ bool ProjectmController::Initialize() {
   return true;
 }
 
-bool TriggerNextPreset() {
+bool ProjectmController::TriggerNextPreset() {
   for (auto &window : projectm_windows_) {
     std::cerr << "Sending stroke to " << window << std::endl;
-    if (xdo_focus_window(xdo, window)) {
+    if (xdo_focus_window(xdo_, window)) {
       std::cerr << "Failed to focus window";
       return false;
     }
-    if (xdo_send_keysequence_window(xdo, window, "n", 12000)) {
+    if (xdo_send_keysequence_window(xdo_, window, "n", 12000)) {
       std::cerr << "Failed to send key sequence";
       return false;
     }

@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -5,15 +7,14 @@
 #include <vector>
 
 #include "led_driver/led_mapping.pb.h"
-#include "periodic.h"
 #include "pixel_utils.h"
 #include "projectm_controller.h"
 #include "spi_driver.h"
 #include "vc_capture_source.h"
+#include "visual_interest_processor.h"
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
-#include "absl/time/clock.h"
 
 struct LedIntensity {
   LedIntensity(float intensity) : intensity(intensity) {}
@@ -41,6 +42,22 @@ ABSL_FLAG(std::string, mapping_file, "mapping.binaryproto",
           "File containing the LED mapping");
 ABSL_FLAG(LedIntensity, intensity, LedIntensity(1.0f),
           "Scale factor for LED intensity");
+ABSL_FLAG(bool, enable_projectm_controller, true,
+          "Whether to enable the ProjectM Controller");
+ABSL_FLAG(ssize_t, calculation_period_ms, 1000,
+          "Period in milliseconds for calculating the visual interest of a "
+          "visualizer frame");
+ABSL_FLAG(float, alpha, 0.7f,
+          "Moving average decay factor for the visual interest calculator");
+ABSL_FLAG(ssize_t, moving_average_minimum_invocations, 5,
+          "Minimum number of calculations needed to check the moving average "
+          "against the threshold");
+ABSL_FLAG(float, visual_interest_threshold, 10,
+          "Visual interest threshold below which the ProjectM Controller will "
+          "advance the preset");
+ABSL_FLAG(ssize_t, cooldown_duration, 10,
+          "Calculation periods to wait after advancing the preset before "
+          "beginning to calculate the moving average");
 
 namespace led_driver {
 
@@ -107,39 +124,6 @@ private:
   LedIntensity intensity_;
 };
 
-class VisualInterestProcessor : public ImageBufferReceiverInterface {
-public:
-  VisualInterestProcessor()
-      : periodic_timer_(kDebugPeriod, absl::Now().Milliseconds()) {}
-
-  void Receive(std::shared_ptr<ImageBuffer> image_buffer) override {
-    float visual_interest = CalculateVisualInterest(image_buffer->buffer);
-    if (periodic_timer_.IsDue(absl::Now().Milliseconds())) {
-      std::cerr << "Visual interest is " << visual_interest << std::endl;
-    }
-  }
-
-private:
-  constexpr static int64_t kDebugPeriod = 60000;
-
-  float CalculateVisualInterest(std::vector<uint8_t> &raw_image) {
-    if (previous_image_.size() != raw_image.size()) {
-      previous_image_ = raw_image;
-      return 0.0f;
-    }
-    int64_t delta_energy = 0;
-    for (int i = 0; i < raw_image.size(); ++i) {
-      delta_energy += math.pow(abs(raw_image[i] - previous_image_[i]));
-    }
-
-    previous_image_ = raw_image;
-    return static_cast<float>(delta_energy) / raw_image.size();
-  }
-
-  std::vector<uint8_t> previous_image_;
-  Periodic<int64_t> periodic_timer_;
-};
-
 int main(int argc, char *argv[]) {
   absl::ParseCommandLine(argc, argv);
 
@@ -167,13 +151,6 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto projectm_controller = ProjectmController::Create();
-
-  if (projectm_controller == nullptr) {
-    std::cerr << "Failed to create projectm controller" << std::endl;
-    return 1;
-  }
-
   auto image_buffer_receiver = std::make_shared<SpiImageBufferReceiver>(
       spi_driver, coordinates, absl::GetFlag(FLAGS_intensity));
 
@@ -182,19 +159,39 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  auto visual_interest_processor =
-      std::make_shared<VisualInterestProcessor>(projectm_controller);
+  std::shared_ptr<VcCaptureSource> capture_source;
+  if (absl::GetFlag(FLAGS_enable_projectm_controller)) {
+    auto projectm_controller = ProjectmController::Create();
 
-  if (visual_interest_processor == nullptr) {
-    std::cerr << "Failed to create visual interest processor" << std::endl;
+    if (projectm_controller == nullptr) {
+      std::cerr << "Failed to create projectm controller" << std::endl;
+      return 1;
+    }
+
+    VisualInterestProcessor::Config config;
+    config.calculation_period_ms = absl::GetFlag(FLAGS_calculation_period_ms);
+    config.alpha = absl::GetFlag(FLAGS_alpha);
+    config.moving_average_minimum_invocations =
+        absl::GetFlag(FLAGS_moving_average_minimum_invocations);
+    config.visual_interest_threshold =
+        absl::GetFlag(FLAGS_visual_interest_threshold);
+    config.cooldown_duration = absl::GetFlag(FLAGS_cooldown_duration);
+    auto visual_interest_processor =
+        std::make_shared<VisualInterestProcessor>(config, projectm_controller);
+
+    if (visual_interest_processor == nullptr) {
+      std::cerr << "Failed to create visual interest processor" << std::endl;
+    }
+
+    auto image_buffer_receiver_multiplexer =
+        std::shared_ptr<ImageBufferReceiverMultiplexer>(
+            new ImageBufferReceiverMultiplexer(
+                {image_buffer_receiver, visual_interest_processor}));
+
+    capture_source = VcCaptureSource::Create(image_buffer_receiver_multiplexer);
+  } else {
+    capture_source = VcCaptureSource::Create(image_buffer_receiver);
   }
-
-  auto image_buffer_receiver_multiplexer =
-      std::make_shared<ImageBufferReceiverMultiplexer>(
-          image_buffer_receiver, visual_interest_processor);
-
-  auto capture_source =
-      VcCaptureSource::Create(image_buffer_receiver_multiplexer);
 
   if (capture_source == nullptr) {
     std::cerr << "Failed to create capture source" << std::endl;
