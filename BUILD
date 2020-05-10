@@ -35,6 +35,11 @@ cc_library(
 )
 
 cc_library(
+    name = "pixel_utils",
+    hdrs = ["pixel_utils.h"],
+)
+
+cc_library(
     name = "projectm_controller",
     srcs = ["projectm_controller.cc"],
     hdrs = ["projectm_controller.h"],
@@ -70,6 +75,7 @@ cc_binary(
     deps = [
         ":led_mapping_cc_proto",
         ":periodic",
+        ":pixel_utils",
         ":projectm_controller",
         ":spi_driver",
         ":vc_capture_source",

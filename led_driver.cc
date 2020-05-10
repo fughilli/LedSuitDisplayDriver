@@ -6,6 +6,7 @@
 
 #include "led_driver/led_mapping.pb.h"
 #include "periodic.h"
+#include "pixel_utils.h"
 #include "projectm_controller.h"
 #include "spi_driver.h"
 #include "vc_capture_source.h"
@@ -57,35 +58,6 @@ constexpr int kRasterWidth = 100;
 constexpr int kRasterHeight = 100;
 constexpr int kLedGridWidth = 12;
 constexpr int kLedGridHeight = 13;
-
-void TransposeRedGreenPixel(uint8_t *pixel) {
-  uint8_t temp = *pixel;
-  *pixel = *(pixel + 1);
-  *(pixel + 1) = temp;
-}
-
-void TransposeRedGreen(uint8_t *pixels, ssize_t num_pixels) {
-  while (num_pixels--) {
-    TransposeRedGreenPixel(pixels);
-    pixels += 3;
-  }
-}
-
-void ScalePixelValue(uint8_t *pixel, float scale) {
-  if (scale < 0 || scale > 1) {
-    return;
-  }
-  for (int i = 0; i < 3; ++i) {
-    pixel[i] = (pixel[i] * scale);
-  }
-}
-
-void ScalePixelValues(uint8_t *pixels, float scale, ssize_t num_pixels) {
-  while (num_pixels--) {
-    ScalePixelValue(pixels, scale);
-    pixels += 3;
-  }
-}
 
 using Coordinate = std::pair<ssize_t, ssize_t>;
 
