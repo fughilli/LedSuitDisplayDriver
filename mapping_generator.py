@@ -11,6 +11,8 @@ from absl import flags
 flags.DEFINE_string("generate_file", None,
                     "Script to run to generate the LED mapping")
 flags.DEFINE_string("export_file", None, "File to export the mapping to")
+flags.DEFINE_bool("export_only", False,
+                  "Only export the mapping, and then exit")
 
 FLAGS = flags.FLAGS
 
@@ -109,6 +111,10 @@ def main(argv):
 
     mapping_generator = MappingGenerator(
         screen, FLAGS.generate_file, FLAGS.export_file)
+
+    if FLAGS.export_only:
+        print("Exported mapping file, exiting")
+        exit(0)
 
     should_exit = False
     while not should_exit:
