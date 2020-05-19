@@ -1,0 +1,24 @@
+Easter Egg Parameter = 0.135
+FPS = 60
+Fullscreen = false
+Mesh X = 6
+Mesh Y = 6
+Preset Duration = 15
+Shuffle Enabled = 1
+Smooth Preset Duration = 15
+Smooth Transition Duration = 2
+Soft Cut Ratings Enabled = 0
+Texture Size = 256
+Window Height = 200
+Window Width = 200
+
+Hard Cut Sensitivity = 10       # Lower to make hard cuts more frequent
+Aspect Correction = true	    # Custom Shape Aspect Correction
+
+
+# Use a directory such as below to symlink presets you like.
+#Preset Path = /home/pi/banked_presets
+Preset Path = /usr/share/projectM/presets
+
+Title Font = /usr/share/projectM/fonts/Vera.ttf
+Menu Font = /usr/share/projectM/fonts/VeraMono.ttf

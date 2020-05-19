@@ -1,0 +1,32 @@
+First, connect bluetooth:
+
+bluetoothctl
+# connect <Bluetooth Audio Source MAC>
+# exit
+
+Then, start the audio loopback:
+pactl load-module module-loopback source="bluez_source.<Bluetooth Audio Source MAC>.a2dp_source" sink="alsa_output.platform-soc_sound.analog-stereo"
+
+Then, run the ProjectM instance:
+sudo ./run_projectm.sh
+
+Wait for the instance to start. The display driver will be started by that script as well.
+
+
+# DEBUGGING
+
+To debug the strip driver, first start an X server:
+sudo xinit -- :0
+
+Then, start the strip driver:
+./led_driver[_test] &
+
+Finally, run the watch script which displays images:
+./display_image.sh [image file]
+
+This will run ImageMagick `display' in update mode. Any changes to the image file will be reflected to the strip within a couple of seconds.
+
+Use the `send_test_image.sh' script to watch a local image file and send it to the display driver for testing. You can re-export a test image from Gimp using <Ctrl>-E
+
+# CONFIGURING INPUT SOURCE
+Edit ~/.config/projectM/qprojectM-pulseaudio.conf to select input device

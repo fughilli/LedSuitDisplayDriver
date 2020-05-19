@@ -40,7 +40,6 @@ sudo apt-get install libxdo-dev projectM-pulseaudio
 You will also need to enable OpenGL support on the Raspberry Pi to get hardware
 acceleration for ProjectM and access to the VideoCore API.
 
-
 Then, execute these commands on your host machine from the `rpi_bazel` root
 directory:
 
@@ -91,3 +90,12 @@ PyGame window.
 
 Each time the script is re-executed, the mapping description will be written to
 `--export_file`.
+
+## Putting it all Together
+
+Convenience scripts are included to run an Xserver, projectM, and the LED driver
+on a remote Raspberry Pi. These scripts are located in the `remote_scripts`
+directory. Copy them to the remote Raspberry Pi and execute
+`sudo ./run_projectm.sh`. Also included are configuration files for projectM
+that set up the correct input device and graphics settings. These files are
+located in the `remote_config` directory.
