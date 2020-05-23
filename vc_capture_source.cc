@@ -40,7 +40,8 @@ T AlignTo(T value, T alignment) {
 
 bool VcCaptureSource::ConfigureCaptureRegion(int x, int y, int width,
                                              int height) {
-    const std::lock_guard capture_configured_mu_lock(capture_configured_mu_);
+    const std::lock_guard<std::mutex> capture_configured_mu_lock(
+            capture_configured_mu_);
     int32_t result = vc_dispmanx_rect_set(&capture_rect_, x, y, width, height);
     if (result != 0) {
         std::cerr << "Failed to set the capture rectangle; "
@@ -67,7 +68,8 @@ bool VcCaptureSource::Capture() {
         return false;
     }
 
-    const std::lock_guard capture_configured_mu_lock(capture_configured_mu_);
+    const std::lock_guard<std::mutex> capture_configured_mu_lock(
+            capture_configured_mu_);
     if (!capture_configured_) {
         std::cerr << "Failed to capture; capture region isn't configured"
                   << std::endl;
