@@ -9,6 +9,11 @@ VIDEOCORE_COPTS = [
     "external/raspberry_pi/sysroot/opt/vc/include/interface/vmcs_host/linux",
 ]
 
+SYSROOT_COPTS = [
+    "-isystem",
+    "external/raspberry_pi/sysroot/usr/include",
+]
+
 cc_library(
     name = "vc_capture_source",
     srcs = ["vc_capture_source.cc"],
@@ -57,8 +62,8 @@ cc_library(
     linkstatic = 1,
     deps = [
         ":periodic",
-        ":vc_capture_source",
         ":projectm_controller",
+        ":vc_capture_source",
         "@com_google_absl//absl/time",
     ],
 )
@@ -79,10 +84,8 @@ cc_binary(
     name = "led_driver",
     srcs = ["led_driver.cc"],
     copts = [
-        "-isystem",
-        "external/raspberry_pi/sysroot/usr/include",
         "-Wthread-safety",
-    ] + VIDEOCORE_COPTS,
+    ] + SYSROOT_COPTS + VIDEOCORE_COPTS,
     data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
     linkopts = [
         "-Lexternal/raspberry_pi/sysroot/opt/vc/lib",
@@ -124,5 +127,36 @@ py_binary(
     data = ["generate.py"],
     deps = [
         ":led_mapping_py_proto",
+    ],
+)
+
+cc_binary(
+    name = "projectm_sdl_test",
+    srcs = ["projectm_sdl_test.cc"],
+    copts = SYSROOT_COPTS,
+    linkopts = [
+        "-Wl,-z,notext",
+        "-lprojectM",
+        "-lSDL2",
+        "-lasound",
+        "-lpulse",
+        "-lX11",
+        "-lXext",
+        "-lXt",
+        "-lsndio",
+        "-lXcursor",
+        "-lXinerama",
+        "-lXrandr",
+        "-lwayland-cursor",
+        "-lwayland-client",
+        "-lwayland-egl",
+        "-lxkbcommon",
+        "-lXxf86vm",
+        "-lXss",
+        "-lXi",
+    ],
+    linkstatic = 1,
+    deps = [
+        "@org_llvm_libcxx//:libcxx",
     ],
 )
