@@ -1,12 +1,34 @@
+//
+// LED Suit Driver - Embedded host driver software for Kevin's LED suit
+// controller. Copyright (C) 2019-2020 Kevin Balke
+//
+// This file is part of LED Suit Driver.
+//
+// LED Suit Driver is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// LED Suit Driver is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with LED Suit Driver.  If not, see <http://www.gnu.org/licenses/>.
+//
+
 #define _USE_MATH_DEFINES
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <SDL2/SDL.h>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <memory>
 
 #include "libprojectm/projectM.hpp"
+#include "performance_timer.h"
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
@@ -17,13 +39,18 @@ ABSL_FLAG(std::string, menu_font_path, "/usr/share/projectM/fonts/VeraMono.ttf",
           "Path of the font used for the menu");
 ABSL_FLAG(std::string, title_font_path, "/usr/share/projectM/fonts/Vera.ttf",
           "Path of the font used for the title");
-ABSL_FLAG(int, runtime_seconds, 2, "How long to run the test for, in seconds");
+
+namespace led_driver {
 
 namespace {
 // Width of the ProjectM window.
 constexpr static int kWindowWidth = 320;
 // Height of the ProjectM window.
 constexpr static int kWindowHeight = 320;
+// Target FPS.
+constexpr static int kFps = 60;
+// Target frame time, in milliseconds.
+constexpr static int kTargetFrameTimeMs = 1000 / kFps;
 
 // Enables vsync for the SDL application.
 void EnableVsync() {
@@ -38,7 +65,7 @@ struct SdlWindowDestroyer {
 };
 } // namespace
 
-int main(int argc, char *argv[]) {
+extern "C" int main(int argc, char *argv[]) {
   absl::ParseCommandLine(argc, argv);
 
   {
@@ -48,10 +75,11 @@ int main(int argc, char *argv[]) {
       return 1;
     }
 
-    window.reset(SDL_CreateWindow(
-        "Test Window", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        kWindowWidth, kWindowHeight,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI));
+    window.reset(
+        SDL_CreateWindow("Test Window", SDL_WINDOWPOS_UNDEFINED,
+                         SDL_WINDOWPOS_UNDEFINED, kWindowWidth, kWindowHeight,
+                         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN |
+                             SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE));
 
     if (window == nullptr) {
       std::cout << "Cound not create window" << std::endl;
@@ -66,14 +94,13 @@ int main(int argc, char *argv[]) {
     projectM::Settings settings;
     settings.windowWidth = kWindowWidth;
     settings.windowHeight = kWindowHeight;
-    settings.textureSize = 256;
     settings.meshX = 32;
     settings.meshY = 32;
     settings.fps = 60;
     settings.smoothPresetDuration = 3;
-    settings.presetDuration = 3;
+    settings.presetDuration = 10;
     settings.beatSensitivity = 1;
-    settings.aspectCorrection = true;
+    settings.aspectCorrection = false;
     settings.shuffleEnabled = true;
     settings.softCutRatingsEnabled = true;
     settings.easterEgg = 1.0f;
@@ -88,20 +115,64 @@ int main(int argc, char *argv[]) {
     std::unique_ptr<projectM> projectm =
         std::make_unique<projectM>(settings, flags);
 
-    float buffer[1024] = {0};
+    float buffer[1024];
+    for (int i = 0; i < 1024; ++i) {
+      buffer[i] = sin(i * M_PI * 2 / 1024);
+      if (i < 100) {
+        buffer[i] += sin(i * 20 * M_PI * 2 / 1024);
+        buffer[i] /= 2;
+      }
+    }
 
-    float t = 0;
-    for (int i = 0; i < 60 * absl::GetFlag(FLAGS_runtime_seconds); i++) {
+    bool exit_event_received = false;
+    PerformanceTimer<uint32_t> frame_timer;
+    while (!exit_event_received) {
+      frame_timer.Start(SDL_GetTicks());
       glClearColor(0.0, 0.0, 0.0, 0.0);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       projectm->renderFrame();
       projectm->pcm()->addPCMfloat(buffer, 1024);
+
+      SDL_Event event;
+      while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+        case SDL_WINDOWEVENT:
+          int new_width, new_height;
+          SDL_GL_GetDrawableSize(window.get(), &new_width, &new_height);
+          switch (event.window.event) {
+          case SDL_WINDOWEVENT_RESIZED:
+          case SDL_WINDOWEVENT_SIZE_CHANGED:
+            projectm->projectM_resetGL(new_width, new_height);
+            break;
+          }
+          break;
+        case SDL_KEYDOWN:
+          // Handle key
+          switch (event.key.keysym.sym) {
+          case SDLK_LEFT:
+            projectm->selectPrevious(true);
+            break;
+          case SDLK_RIGHT:
+            projectm->selectNext(true);
+            break;
+          }
+          break;
+        case SDL_QUIT:
+          exit_event_received = true;
+          break;
+        }
+      }
       SDL_GL_SwapWindow(window.get());
-      SDL_Delay(1000 / 60);
-      t += 1.0f / 60;
+
+      uint32_t frame_time = frame_timer.End(SDL_GetTicks());
+      if (frame_time >= kTargetFrameTimeMs) {
+        continue;
+      }
+      SDL_Delay(kTargetFrameTimeMs - frame_time);
     }
   }
   SDL_Quit();
   return 0;
 }
+} // namespace led_driver

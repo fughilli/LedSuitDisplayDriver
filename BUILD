@@ -162,6 +162,7 @@ cc_binary(
     ],
     linkstatic = 1,
     deps = [
+        ":performance_timer",
         "//libprojectm",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
