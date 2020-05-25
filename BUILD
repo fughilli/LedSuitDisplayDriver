@@ -43,6 +43,11 @@ cc_library(
 )
 
 cc_library(
+    name = "performance_timer",
+    hdrs = ["performance_timer.h"],
+)
+
+cc_library(
     name = "pixel_utils",
     hdrs = ["pixel_utils.h"],
 )
