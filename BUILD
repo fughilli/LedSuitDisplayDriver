@@ -136,7 +136,6 @@ cc_binary(
     copts = SYSROOT_COPTS,
     linkopts = [
         "-Wl,-z,notext",
-        "-lprojectM",
         "-lSDL2",
         "-lasound",
         "-lpulse",
@@ -154,9 +153,13 @@ cc_binary(
         "-lXxf86vm",
         "-lXss",
         "-lXi",
+        "-lGL",
     ],
     linkstatic = 1,
     deps = [
+        "//libprojectm",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
         "@org_llvm_libcxx//:libcxx",
     ],
 )
