@@ -169,3 +169,16 @@ cc_binary(
         "@org_llvm_libcxx//:libcxx",
     ],
 )
+
+cc_library(
+    name = "pulseaudio_interface",
+    srcs = ["pulseaudio_interface.cc"],
+    hdrs = ["pulseaudio_interface.h"],
+    linkopts = [
+        "-lpulse",
+    ],
+    linkstatic = 1,
+    deps = [
+        "@com_google_absl//absl/types:span",
+    ],
+)
