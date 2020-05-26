@@ -31,9 +31,11 @@
 
 #include "libprojectm/projectM.hpp"
 #include "performance_timer.h"
+#include "pulseaudio_interface.h"
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/types/span.h"
 
 ABSL_FLAG(std::string, preset_path, "/usr/share/projectM/presets",
           "Path where preset files are located");
@@ -72,16 +74,16 @@ struct CallbackData {
   int channel_count;
 };
 
-void AudioInputCallbackF32(void *user_data, unsigned char *stream, int length) {
-  CallbackData *callback_data = reinterpret_cast<CallbackData *>(user_data);
+void AddAudioData(std::shared_ptr<CallbackData> callback_data,
+                  absl::Span<const float> samples) {
   switch (callback_data->channel_count) {
   case 1:
-    callback_data->projectm->pcm()->addPCMfloat(
-        reinterpret_cast<float *>(stream), length / sizeof(float));
+    callback_data->projectm->pcm()->addPCMfloat(samples.data(),
+                                                samples.length());
     break;
   case 2:
-    callback_data->projectm->pcm()->addPCMfloat_2ch(
-        reinterpret_cast<float *>(stream), length / sizeof(float));
+    callback_data->projectm->pcm()->addPCMfloat_2ch(samples.data(),
+                                                    samples.length());
     break;
   default:
     std::cerr << "Unsupported PCM channel count: "
@@ -89,60 +91,6 @@ void AudioInputCallbackF32(void *user_data, unsigned char *stream, int length) {
     SDL_Quit();
   }
 }
-
-std::shared_ptr<CallbackData>
-InitializeAudio(std::shared_ptr<projectM> projectm, int audio_device_id) {
-  const char *driver_name = SDL_GetCurrentAudioDriver();
-  std::cout << "Using driver: " << driver_name << std::endl;
-
-  int num_devices = SDL_GetNumAudioDevices(true);
-  std::cout << "Number of devices: " << num_devices << std::endl;
-
-  auto callback_data = std::make_shared<CallbackData>();
-  callback_data->projectm = projectm;
-  callback_data->channel_count = 0;
-
-  SDL_AudioSpec desired_spec = {0}, actual_spec = {0};
-  desired_spec.freq = 44100;
-  desired_spec.format = AUDIO_F32;
-  desired_spec.channels = 2;
-  desired_spec.samples = 1024;
-  desired_spec.callback = &AudioInputCallbackF32;
-  desired_spec.userdata = reinterpret_cast<void *>(callback_data.get());
-
-  std::vector<std::string> device_names;
-  for (int i = 0; i < num_devices; ++i) {
-    device_names.emplace_back(SDL_GetAudioDeviceName(i, true));
-    std::cout << "Audio device name: " << device_names[i] << std::endl;
-  }
-  if (audio_device_id >= num_devices) {
-    std::cerr << "Invalid audio device id: " << audio_device_id << std::endl;
-    SDL_Quit();
-  }
-  std::cout << "Selected device: " << device_names[audio_device_id]
-            << std::endl;
-  int opened_audio_device_id =
-      SDL_OpenAudioDevice(device_names[audio_device_id].c_str(), true,
-                          &desired_spec, &actual_spec, 0);
-  if (opened_audio_device_id == 0) {
-    std::cerr << "Failed to open audio device; SDL_OpenAudioDevice returned "
-              << opened_audio_device_id << std::endl;
-    SDL_Quit();
-  }
-
-  if (actual_spec.format != AUDIO_F32) {
-    std::cerr << "Failed to open audio device with format AUDIO_F32; "
-                 "SDL_OpenAudioDevice returned "
-              << actual_spec.format << std::endl;
-    SDL_Quit();
-  }
-  callback_data->channel_count = actual_spec.channels;
-
-  SDL_PauseAudioDevice(audio_device_id, false);
-
-  return callback_data;
-}
-
 } // namespace
 
 extern "C" int main(int argc, char *argv[]) {
@@ -150,7 +98,7 @@ extern "C" int main(int argc, char *argv[]) {
 
   {
     std::unique_ptr<SDL_Window, SdlWindowDestroyer> window;
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
       std::cout << "could not initialize SDL" << std::endl;
       return 1;
     }
@@ -193,9 +141,17 @@ extern "C" int main(int argc, char *argv[]) {
     int flags = 0;
     std::cout << "Initializing projectM" << std::endl;
     std::shared_ptr<projectM> projectm =
-        std::make_unique<projectM>(settings, flags);
-    std::shared_ptr<CallbackData> callback_data_structure =
-        InitializeAudio(projectm, absl::GetFlag(FLAGS_audio_device_id));
+        std::make_shared<projectM>(settings, flags);
+
+    auto callback_data = std::make_shared<CallbackData>();
+    callback_data->projectm = projectm;
+    callback_data->channel_count = 2;
+    auto pa_interface = std::make_shared<PulseAudioInterface>(
+        "", "alsa_input.pci-0000_00_1f.3.analog-stereo", "input_stream",
+        [&callback_data](absl::Span<const float> samples) {
+          AddAudioData(callback_data, samples);
+        });
+    pa_interface->Initialize();
 
     float buffer[1024];
     for (int i = 0; i < 1024; ++i) {
@@ -214,6 +170,7 @@ extern "C" int main(int argc, char *argv[]) {
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       projectm->renderFrame();
+      pa_interface->Iterate();
 
       SDL_Event event;
       while (SDL_PollEvent(&event)) {

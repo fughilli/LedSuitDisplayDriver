@@ -163,9 +163,11 @@ cc_binary(
     linkstatic = 1,
     deps = [
         ":performance_timer",
+        ":pulseaudio_interface",
         "//libprojectm",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/types:span",
         "@org_llvm_libcxx//:libcxx",
     ],
 )
