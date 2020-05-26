@@ -127,6 +127,9 @@ extern "C" int main(int argc, char *argv[]) {
     settings.fps = 60;
     settings.smoothPresetDuration = 3;
     settings.presetDuration = 10;
+    settings.hardcutEnabled = true;
+    settings.hardcutDuration = 2;
+    settings.hardcutSensitivity = 10.0f;
     settings.beatSensitivity = 1;
     settings.aspectCorrection = false;
     settings.shuffleEnabled = true;
