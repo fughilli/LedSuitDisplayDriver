@@ -1,6 +1,6 @@
 //
-// LED Suit Driver - Embedded host driver software for Kevin's LED suit controller.
-// Copyright (C) 2019-2020 Kevin Balke
+// LED Suit Driver - Embedded host driver software for Kevin's LED suit
+// controller. Copyright (C) 2019-2020 Kevin Balke
 //
 // This file is part of LED Suit Driver.
 //
@@ -33,16 +33,16 @@ class PulseAudioInterface {
 public:
   using SampleCallbackType = std::function<void(absl::Span<const float>)>;
   PulseAudioInterface(std::string server_name, std::string device_name,
-                      std::string stream_name,
+                      std::string stream_name, int channel_count,
                       SampleCallbackType sample_callback)
       : server_name_(std::move(server_name)),
         device_name_(std::move(device_name)),
-        stream_name_(std::move(stream_name)),
+        stream_name_(std::move(stream_name)), channel_count_(channel_count),
         sample_callback_(std::move(sample_callback)) {
     memset(&sample_spec_, 0, sizeof(sample_spec_));
     sample_spec_.format = PA_SAMPLE_FLOAT32LE;
     sample_spec_.rate = 44100;
-    sample_spec_.channels = 2;
+    sample_spec_.channels = channel_count_;
   }
   bool Initialize();
   bool Iterate();
@@ -71,6 +71,7 @@ private:
   std::string server_name_;
   std::string device_name_;
   std::string stream_name_;
+  int channel_count_;
   SampleCallbackType sample_callback_;
   pa_sample_spec sample_spec_;
   pa_context *context_;

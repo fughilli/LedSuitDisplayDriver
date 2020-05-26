@@ -43,15 +43,20 @@ ABSL_FLAG(std::string, menu_font_path, "/usr/share/projectM/fonts/VeraMono.ttf",
           "Path of the font used for the menu");
 ABSL_FLAG(std::string, title_font_path, "/usr/share/projectM/fonts/Vera.ttf",
           "Path of the font used for the title");
-ABSL_FLAG(int, audio_device_id, 0, "ID of audio device to record from");
+ABSL_FLAG(std::string, pulseaudio_server, "",
+          "PulseAudio server to connect to");
+ABSL_FLAG(std::string, pulseaudio_source, "",
+          "PulseAudio source device to capture audio from");
+ABSL_FLAG(int, channel_count, 2,
+          "Audio channel count to request from the audio source");
 
 namespace led_driver {
 
 namespace {
 // Width of the ProjectM window.
-constexpr static int kWindowWidth = 320;
+constexpr static int kWindowWidth = 100;
 // Height of the ProjectM window.
-constexpr static int kWindowHeight = 320;
+constexpr static int kWindowHeight = 100;
 // Target FPS.
 constexpr static int kFps = 60;
 // Target frame time, in milliseconds.
@@ -104,7 +109,7 @@ extern "C" int main(int argc, char *argv[]) {
     }
 
     window.reset(
-        SDL_CreateWindow("Test Window", SDL_WINDOWPOS_UNDEFINED,
+        SDL_CreateWindow("ProjectM", SDL_WINDOWPOS_UNDEFINED,
                          SDL_WINDOWPOS_UNDEFINED, kWindowWidth, kWindowHeight,
                          SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN |
                              SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE));
@@ -148,9 +153,11 @@ extern "C" int main(int argc, char *argv[]) {
 
     auto callback_data = std::make_shared<CallbackData>();
     callback_data->projectm = projectm;
-    callback_data->channel_count = 2;
+    callback_data->channel_count = absl::GetFlag(FLAGS_channel_count);
     auto pa_interface = std::make_shared<PulseAudioInterface>(
-        "", "alsa_input.pci-0000_00_1f.3.analog-stereo", "input_stream",
+        absl::GetFlag(FLAGS_pulseaudio_server),
+        absl::GetFlag(FLAGS_pulseaudio_source), "input_stream",
+        callback_data->channel_count,
         [&callback_data](absl::Span<const float> samples) {
           AddAudioData(callback_data, samples);
         });
