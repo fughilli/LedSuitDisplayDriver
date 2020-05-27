@@ -49,14 +49,17 @@ ABSL_FLAG(std::string, pulseaudio_source, "",
           "PulseAudio source device to capture audio from");
 ABSL_FLAG(int, channel_count, 2,
           "Audio channel count to request from the audio source");
+ABSL_FLAG(int, mesh_x, 6, "ProjectM mesh size in X");
+ABSL_FLAG(int, mesh_y, 6, "ProjectM mesh size in Y");
+ABSL_FLAG(int, window_width, 100, "ProjectM window width");
+ABSL_FLAG(int, window_height, 100, "ProjectM window height");
+ABSL_FLAG(int, hack_num_audio_loops, 10,
+          "Number of loop iterations to run the audio pipeline before "
+          "rendering a frame");
 
 namespace led_driver {
 
 namespace {
-// Width of the ProjectM window.
-constexpr static int kWindowWidth = 100;
-// Height of the ProjectM window.
-constexpr static int kWindowHeight = 100;
 // Target FPS.
 constexpr static int kFps = 60;
 // Target frame time, in milliseconds.
@@ -108,11 +111,11 @@ extern "C" int main(int argc, char *argv[]) {
       return 1;
     }
 
-    window.reset(
-        SDL_CreateWindow("ProjectM", SDL_WINDOWPOS_UNDEFINED,
-                         SDL_WINDOWPOS_UNDEFINED, kWindowWidth, kWindowHeight,
-                         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN |
-                             SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE));
+    window.reset(SDL_CreateWindow(
+        "ProjectM", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        absl::GetFlag(FLAGS_window_width), absl::GetFlag(FLAGS_window_height),
+        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI |
+            SDL_WINDOW_RESIZABLE));
 
     if (window == nullptr) {
       std::cout << "Cound not create window" << std::endl;
@@ -125,10 +128,10 @@ extern "C" int main(int argc, char *argv[]) {
     EnableVsync();
 
     projectM::Settings settings;
-    settings.windowWidth = kWindowWidth;
-    settings.windowHeight = kWindowHeight;
-    settings.meshX = 32;
-    settings.meshY = 32;
+    settings.windowWidth = absl::GetFlag(FLAGS_window_width);
+    settings.windowHeight = absl::GetFlag(FLAGS_window_height);
+    settings.meshX = absl::GetFlag(FLAGS_mesh_x);
+    settings.meshY = absl::GetFlag(FLAGS_mesh_y);
     settings.fps = 60;
     settings.smoothPresetDuration = 3;
     settings.presetDuration = 10;
@@ -139,7 +142,7 @@ extern "C" int main(int argc, char *argv[]) {
     settings.aspectCorrection = false;
     settings.shuffleEnabled = true;
     settings.softCutRatingsEnabled = true;
-    settings.easterEgg = 1.0f;
+    settings.easterEgg = 5.0f;
     settings.textureSize = 256;
 
     settings.presetURL = absl::GetFlag(FLAGS_preset_path);
@@ -163,15 +166,6 @@ extern "C" int main(int argc, char *argv[]) {
         });
     pa_interface->Initialize();
 
-    float buffer[1024];
-    for (int i = 0; i < 1024; ++i) {
-      buffer[i] = sin(i * M_PI * 2 / 1024);
-      if (i < 100) {
-        buffer[i] += sin(i * 20 * M_PI * 2 / 1024);
-        buffer[i] /= 2;
-      }
-    }
-
     bool exit_event_received = false;
     PerformanceTimer<uint32_t> frame_timer;
     while (!exit_event_received) {
@@ -179,8 +173,10 @@ extern "C" int main(int argc, char *argv[]) {
       glClearColor(0.0, 0.0, 0.0, 0.0);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+      for (int i = 0; i < absl::GetFlag(FLAGS_hack_num_audio_loops); ++i) {
+        pa_interface->Iterate();
+      }
       projectm->renderFrame();
-      pa_interface->Iterate();
 
       SDL_Event event;
       while (SDL_PollEvent(&event)) {
@@ -198,10 +194,10 @@ extern "C" int main(int argc, char *argv[]) {
         case SDL_KEYDOWN:
           // Handle key
           switch (event.key.keysym.sym) {
-          case SDLK_LEFT:
+          case SDLK_n:
             projectm->selectPrevious(true);
             break;
-          case SDLK_RIGHT:
+          case SDLK_p:
             projectm->selectNext(true);
             break;
           }

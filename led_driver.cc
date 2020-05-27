@@ -1,6 +1,6 @@
 //
-// LED Suit Driver - Embedded host driver software for Kevin's LED suit controller.
-// Copyright (C) 2019-2020 Kevin Balke
+// LED Suit Driver - Embedded host driver software for Kevin's LED suit
+// controller. Copyright (C) 2019-2020 Kevin Balke
 //
 // This file is part of LED Suit Driver.
 //
@@ -78,6 +78,8 @@ ABSL_FLAG(float, visual_interest_threshold, 10,
 ABSL_FLAG(ssize_t, cooldown_duration, 10,
           "Calculation periods to wait after advancing the preset before "
           "beginning to calculate the moving average");
+ABSL_FLAG(int, raster_width, 100, "Width of the source raster, in pixels");
+ABSL_FLAG(int, raster_height, 100, "Height of the source raster, in pixels");
 
 namespace led_driver {
 
@@ -91,10 +93,6 @@ constexpr SpiDriver::ClockPhase kClockPhase =
 constexpr int kBitsPerWord = 8;
 constexpr int kSpeedHz = 15600000;
 constexpr int kDelayUs = 0;
-constexpr int kRasterWidth = 100;
-constexpr int kRasterHeight = 100;
-constexpr int kLedGridWidth = 12;
-constexpr int kLedGridHeight = 13;
 
 using Coordinate = std::pair<ssize_t, ssize_t>;
 
@@ -159,8 +157,10 @@ int main(int argc, char *argv[]) {
       continue;
     }
     coordinates.emplace_back(
-        static_cast<ssize_t>(sample.x() * (kRasterWidth - 1)),
-        static_cast<ssize_t>(sample.y() * (kRasterHeight - 1)));
+        static_cast<ssize_t>(sample.x() *
+                             (absl::GetFlag(FLAGS_raster_width) - 1)),
+        static_cast<ssize_t>(sample.y() *
+                             (absl::GetFlag(FLAGS_raster_height) - 1)));
   }
 
   auto spi_driver = SpiDriver::Create(kDevice, kClockPolarity, kClockPhase,
@@ -218,7 +218,9 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  capture_source->ConfigureCaptureRegion(0, 0, kRasterWidth, kRasterHeight);
+  capture_source->ConfigureCaptureRegion(0, 0,
+                                         absl::GetFlag(FLAGS_raster_width),
+                                         absl::GetFlag(FLAGS_raster_height));
 
   while (1) {
     if (!capture_source->Capture()) {

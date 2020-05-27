@@ -1,6 +1,6 @@
 //
-// LED Suit Driver - Embedded host driver software for Kevin's LED suit controller.
-// Copyright (C) 2019-2020 Kevin Balke
+// LED Suit Driver - Embedded host driver software for Kevin's LED suit
+// controller. Copyright (C) 2019-2020 Kevin Balke
 //
 // This file is part of LED Suit Driver.
 //
@@ -113,6 +113,7 @@ void PulseAudioInterface::ContextStateCallback(pa_context *new_context) {
   }
 
   pa_buffer_attr buffer_attributes = {0};
+  const pa_sample_spec *actual_sample_spec_ptr = nullptr;
 
   switch (pa_context_get_state(new_context)) {
   case PA_CONTEXT_CONNECTING:
@@ -121,7 +122,10 @@ void PulseAudioInterface::ContextStateCallback(pa_context *new_context) {
     break;
 
   case PA_CONTEXT_READY:
-    std::cout << "Creating stream" << std::endl;
+    std::cout << "Creating stream with sample spec: format="
+              << sample_spec_.format << " rate=" << sample_spec_.rate
+              << " channels=" << static_cast<int>(sample_spec_.channels)
+              << std::endl;
     if ((stream_ = pa_stream_new(new_context, stream_name_.c_str(),
                                  &sample_spec_, nullptr)) == nullptr) {
       std::cerr << "Failed to create stream" << std::endl;
@@ -134,10 +138,7 @@ void PulseAudioInterface::ContextStateCallback(pa_context *new_context) {
     pa_stream_set_read_callback(
         stream_, PulseAudioInterface::StreamReadCallbackStatic, this);
 
-    buffer_attributes.tlength = 1;
-    buffer_attributes.minreq = 1;
     buffer_attributes.maxlength = -1;
-    buffer_attributes.prebuf = -1;
     buffer_attributes.fragsize = 1;
 
     std::cout << "Connecting recording stream" << std::endl;
@@ -148,6 +149,17 @@ void PulseAudioInterface::ContextStateCallback(pa_context *new_context) {
                 << pa_strerror(pa_context_errno(new_context)) << std::endl;
       abort();
     }
+
+    if ((actual_sample_spec_ptr = pa_stream_get_sample_spec(stream_)) ==
+        nullptr) {
+      std::cerr << "Unable to read actual sample spec from stream" << std::endl;
+      abort();
+    }
+    sample_spec_ = *actual_sample_spec_ptr;
+    std::cout << "Sample spec: format=" << sample_spec_.format
+              << " rate=" << sample_spec_.rate
+              << " channels=" << static_cast<int>(sample_spec_.channels)
+              << std::endl;
 
     break;
 

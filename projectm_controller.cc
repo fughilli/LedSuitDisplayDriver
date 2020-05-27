@@ -68,6 +68,7 @@ bool ProjectmController::TriggerNextPreset() {
     }
     return true;
   }
+  return false;
 }
 
 } // namespace led_driver
