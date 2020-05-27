@@ -23,10 +23,15 @@
 #include <GL/glext.h>
 #include <SDL2/SDL.h>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <iostream>
 #include <memory>
+#include <mutex>
+#include <queue>
 #include <string>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #include "libprojectm/projectM.hpp"
@@ -81,6 +86,10 @@ struct CallbackData {
   std::shared_ptr<projectM> projectm;
   int channel_count;
 };
+
+std::mutex audio_queue_mutex;
+std::queue<std::pair<std::shared_ptr<CallbackData>, std::vector<const float>>>
+    audio_queue;
 
 void AddAudioData(std::shared_ptr<CallbackData> callback_data,
                   absl::Span<const float> samples) {
@@ -162,9 +171,19 @@ extern "C" int main(int argc, char *argv[]) {
         absl::GetFlag(FLAGS_pulseaudio_source), "input_stream",
         callback_data->channel_count,
         [&callback_data](absl::Span<const float> samples) {
-          AddAudioData(callback_data, samples);
+          std::lock_guard<std::mutex> audio_queue_lock(audio_queue_mutex);
+          audio_queue.push(std::make_pair(
+              callback_data,
+              std::vector<const float>(samples.begin(), samples.end())));
         });
     pa_interface->Initialize();
+
+    std::atomic_bool quit_audio_thread(false);
+    auto audio_thread = std::thread([&quit_audio_thread, &pa_interface]() {
+      while (!quit_audio_thread) {
+        pa_interface->Iterate();
+      }
+    });
 
     bool exit_event_received = false;
     PerformanceTimer<uint32_t> frame_timer;
@@ -172,9 +191,12 @@ extern "C" int main(int argc, char *argv[]) {
       frame_timer.Start(SDL_GetTicks());
       glClearColor(0.0, 0.0, 0.0, 0.0);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-      for (int i = 0; i < absl::GetFlag(FLAGS_hack_num_audio_loops); ++i) {
-        pa_interface->Iterate();
+      {
+        std::lock_guard<std::mutex> audio_queue_lock(audio_queue_mutex);
+        while (!audio_queue.empty()) {
+          AddAudioData(audio_queue.front().first, audio_queue.front().second);
+          audio_queue.pop();
+        }
       }
       projectm->renderFrame();
 
@@ -215,6 +237,8 @@ extern "C" int main(int argc, char *argv[]) {
       }
       SDL_Delay(kTargetFrameTimeMs - frame_time);
     }
+    quit_audio_thread = true;
+    audio_thread.join();
   }
   SDL_Quit();
   return 0;
