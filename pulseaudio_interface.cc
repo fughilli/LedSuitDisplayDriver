@@ -29,11 +29,11 @@ constexpr static bool kVerboseLogging = false;
 }
 
 bool PulseAudioInterface::Initialize() {
-  if ((mainloop_ = pa_mainloop_new()) == nullptr) {
+  if ((mainloop_ = pa_threaded_mainloop_new()) == nullptr) {
     std::cerr << "Failed to create main loop" << std::endl;
     return false;
   }
-  mainloop_api_ = pa_mainloop_get_api(mainloop_);
+  mainloop_api_ = pa_threaded_mainloop_get_api(mainloop_);
   if ((context_ = pa_context_new(mainloop_api_, "LedSuitPaInterface")) ==
       nullptr) {
     std::cerr << "Failed to create context" << std::endl;
@@ -176,12 +176,10 @@ void PulseAudioInterface::ContextStateCallback(pa_context *new_context) {
   }
 }
 
-bool PulseAudioInterface::Iterate() {
-  if (kVerboseLogging) {
-    std::cout << "Iterate!" << std::endl;
-  }
-  pa_mainloop_iterate(mainloop_, false, nullptr);
-  return true;
+bool PulseAudioInterface::Start() {
+  return pa_threaded_mainloop_start(mainloop_) == 0;
 }
+
+void PulseAudioInterface::Stop() { pa_threaded_mainloop_stop(mainloop_); }
 
 } // namespace led_driver

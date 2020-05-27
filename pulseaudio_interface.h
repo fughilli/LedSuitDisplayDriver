@@ -45,7 +45,8 @@ public:
     sample_spec_.channels = channel_count_;
   }
   bool Initialize();
-  bool Iterate();
+  bool Start();
+  void Stop();
 
 private:
   void ContextStateCallback(pa_context *new_context);
@@ -77,7 +78,7 @@ private:
   pa_context *context_;
   pa_stream *stream_;
   pa_mainloop_api *mainloop_api_;
-  pa_mainloop *mainloop_;
+  pa_threaded_mainloop *mainloop_;
 };
 } // namespace led_driver
 

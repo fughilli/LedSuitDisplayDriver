@@ -23,14 +23,12 @@
 #include <GL/glext.h>
 #include <SDL2/SDL.h>
 #include <algorithm>
-#include <atomic>
 #include <cmath>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <string>
-#include <thread>
 #include <utility>
 #include <vector>
 
@@ -58,9 +56,6 @@ ABSL_FLAG(int, mesh_x, 6, "ProjectM mesh size in X");
 ABSL_FLAG(int, mesh_y, 6, "ProjectM mesh size in Y");
 ABSL_FLAG(int, window_width, 100, "ProjectM window width");
 ABSL_FLAG(int, window_height, 100, "ProjectM window height");
-ABSL_FLAG(int, hack_num_audio_loops, 10,
-          "Number of loop iterations to run the audio pipeline before "
-          "rendering a frame");
 
 namespace led_driver {
 
@@ -178,12 +173,7 @@ extern "C" int main(int argc, char *argv[]) {
         });
     pa_interface->Initialize();
 
-    std::atomic_bool quit_audio_thread(false);
-    auto audio_thread = std::thread([&quit_audio_thread, &pa_interface]() {
-      while (!quit_audio_thread) {
-        pa_interface->Iterate();
-      }
-    });
+    pa_interface->Start();
 
     bool exit_event_received = false;
     PerformanceTimer<uint32_t> frame_timer;
@@ -237,8 +227,7 @@ extern "C" int main(int argc, char *argv[]) {
       }
       SDL_Delay(kTargetFrameTimeMs - frame_time);
     }
-    quit_audio_thread = true;
-    audio_thread.join();
+    pa_interface->Stop();
   }
   SDL_Quit();
   return 0;
