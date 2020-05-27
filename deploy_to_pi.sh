@@ -22,7 +22,7 @@
 set -o errexit
 set -o pipefail
 
-bazel build --distinct_host_configuration --config=pi :led_driver :projectm_sdl_test
+bazel build --distinct_host_configuration --config=pi :led_driver :projectm_sdl_test -c opt
 cp ../bazel-bin/led_driver/led_driver /tmp/led_driver
 cp ../bazel-bin/led_driver/projectm_sdl_test /tmp/projectm_sdl_test
 chmod +rw /tmp/led_driver
