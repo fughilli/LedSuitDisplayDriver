@@ -56,6 +56,8 @@ ABSL_FLAG(int, mesh_x, 6, "ProjectM mesh size in X");
 ABSL_FLAG(int, mesh_y, 6, "ProjectM mesh size in Y");
 ABSL_FLAG(int, window_width, 100, "ProjectM window width");
 ABSL_FLAG(int, window_height, 100, "ProjectM window height");
+ABSL_FLAG(int, late_frames_to_skip_preset, 20,
+          "Number of late frames required to skip preset");
 
 namespace led_driver {
 
@@ -177,6 +179,7 @@ extern "C" int main(int argc, char *argv[]) {
 
     bool exit_event_received = false;
     PerformanceTimer<uint32_t> frame_timer;
+    int late_frame_counter = 0;
     while (!exit_event_received) {
       frame_timer.Start(SDL_GetTicks());
       glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -223,8 +226,22 @@ extern "C" int main(int argc, char *argv[]) {
 
       uint32_t frame_time = frame_timer.End(SDL_GetTicks());
       if (frame_time >= kTargetFrameTimeMs) {
+        if (frame_time > (kTargetFrameTimeMs + 10)) {
+          ++late_frame_counter;
+          if (late_frame_counter >=
+              absl::GetFlag(FLAGS_late_frames_to_skip_preset)) {
+            std::cerr << "Had too many late frames in a row ("
+                      << late_frame_counter << "), skipping preset"
+                      << std::endl;
+            late_frame_counter = 0;
+            projectm->selectNext(true);
+          }
+        }
         continue;
+      } else {
+        late_frame_counter = 0;
       }
+
       SDL_Delay(kTargetFrameTimeMs - frame_time);
     }
     pa_interface->Stop();
