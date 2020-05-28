@@ -31,6 +31,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <fstream>
 
 #include "libprojectm/projectM.hpp"
 #include "performance_timer.h"
@@ -50,6 +51,10 @@ ABSL_FLAG(std::string, pulseaudio_server, "",
           "PulseAudio server to connect to");
 ABSL_FLAG(std::string, pulseaudio_source, "",
           "PulseAudio source device to capture audio from");
+ABSL_FLAG(std::string, whitelist_file, "",
+          "Text file to write the preset whitelist to");
+ABSL_FLAG(std::string, blacklist_file, "",
+          "Text file to write the preset blacklist to");
 ABSL_FLAG(int, channel_count, 2,
           "Audio channel count to request from the audio source");
 ABSL_FLAG(int, mesh_x, 6, "ProjectM mesh size in X");
@@ -104,6 +109,25 @@ void AddAudioData(std::shared_ptr<CallbackData> callback_data,
               << callback_data->channel_count << std::endl;
     SDL_Quit();
   }
+}
+
+std::string GetCurrentPresetUrl(std::shared_ptr<projectM> projectm) {
+  unsigned int selected_preset_index = 0;
+  projectm->selectedPresetIndex(selected_preset_index);
+  return projectm->getPresetURL(selected_preset_index);
+}
+
+void AddPresetToList(std::shared_ptr<projectM> projectm, std::string filename) {
+  if (filename == "") {
+    std::cerr << "Blacklist/whitelist file not set!" << std::endl;
+    return;
+  }
+
+  std::ofstream blacklist_stream;
+  blacklist_stream.open(filename.c_str(),
+                        std::ofstream::app | std::ofstream::out);
+
+  blacklist_stream << GetCurrentPresetUrl(projectm) << std::endl;
 }
 } // namespace
 
@@ -214,6 +238,15 @@ extern "C" int main(int argc, char *argv[]) {
             break;
           case SDLK_p:
             projectm->selectNext(true);
+            break;
+          case SDLK_r:
+            projectm->selectRandom(true);
+            break;
+          case SDLK_b:
+            AddPresetToList(projectm, absl::GetFlag(FLAGS_blacklist_file));
+            break;
+          case SDLK_w:
+            AddPresetToList(projectm, absl::GetFlag(FLAGS_whitelist_file));
             break;
           }
           break;
