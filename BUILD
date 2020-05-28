@@ -184,3 +184,26 @@ cc_library(
         "@com_google_absl//absl/types:span",
     ],
 )
+
+cc_library(
+    name = "display_driver",
+    srcs = ["display_driver.cc"],
+    hdrs = ["display_driver.h"],
+    linkstatic = 1,
+    deps = [
+        "//HexapodController2:bus",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_binary(
+    name = "test_display_driver",
+    srcs = ["test_display_driver.cc"],
+    copts = SYSROOT_COPTS,
+    linkstatic = 1,
+    deps = [
+        ":display_driver",
+        "//HexapodController2:bus",
+        "@org_llvm_libcxx//:libcxx",
+    ],
+)
