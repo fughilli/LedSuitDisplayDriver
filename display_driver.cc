@@ -99,45 +99,31 @@ bool DisplayDriver::SendData(absl::Span<const uint8_t> data) {
   std::cout << "Data: " << data_send_buffer << std::endl;
   return i2c_bus_->Write(kDeviceAddress, data_send_buffer);
 }
-bool DisplayDriver::Update() {
-  std::vector<Command> display_update_commands = {
-      {CommandId::kPageAddr, {0, 0xFF}},
-      {CommandId::kColumnAddr, {0}},
-  };
-  CHECK_RETURN(SendCommand(display_update_commands));
-  CHECK_RETURN(SendNakedCommand(kDisplayWidth - 1));
 
+bool DisplayDriver::Update() {
+  CHECK_RETURN(SendCommand({
+      {CommandId::kPageAddr, {0, 0xFF}},
+      {CommandId::kColumnAddr, {0, kDisplayWidth - 1}},
+  }));
   return SendData(display_buffer_);
 }
 
 bool DisplayDriver::Initialize() {
-  CHECK_RETURN(SendCommand({
+  return SendCommand({
       {CommandId::kDisplayOff, {}},
       {CommandId::kSetDisplayClockDiv, {0x80}},
-      {CommandId::kSetMultiplex, {}},
-  }));
-  CHECK_RETURN(SendNakedCommand(kDisplayHeight - 1));
-  CHECK_RETURN(SendCommand({
+      {CommandId::kSetMultiplex, {kDisplayHeight - 1}},
       {CommandId::kSetDisplayOffset, {0}},
       {CommandId::kSetStartLine, {}},
-      {CommandId::kChargePump, {}},
-  }));
-  CHECK_RETURN(SendNakedCommand(0x14));
-  CHECK_RETURN(SendCommand({
+      {CommandId::kChargePump, {0x14}},
       {CommandId::kMemoryMode, {0}},
       {static_cast<CommandId>(static_cast<uint8_t>(CommandId::kSegRemap) |
                               0x01),
        {}},
       {CommandId::kComScanDec, {}},
-  }));
-  CHECK_RETURN(SendCommand({CommandId::kSetComPins, {}}));
-  CHECK_RETURN(SendNakedCommand(0x02));
-  CHECK_RETURN(SendCommand({CommandId::kSetContrast, {}}));
-  CHECK_RETURN(SendNakedCommand(0x8F));
-  CHECK_RETURN(SendCommand({CommandId::kSetPrecharge, {}}));
-  CHECK_RETURN(SendNakedCommand(0xF1));
-
-  return SendCommand({
+      {CommandId::kSetComPins, {0x02}},
+      {CommandId::kSetContrast, {0x8F}},
+      {CommandId::kSetPrecharge, {0xF1}},
       {CommandId::kSetVcomDetect, {0x40}},
       {CommandId::kDisplayAllOnResume, {}},
       {CommandId::kNormalDisplay, {}},
