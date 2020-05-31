@@ -1,4 +1,11 @@
 load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
+load("//:py_wrap_cc.bzl", "py_wrap_cc")
+load("@subpar//:subpar.bzl", "par_binary")
+
+config_setting(
+    name = "pi_build",
+    values = {"cpu": "armeabihf"},
+)
 
 VIDEOCORE_COPTS = [
     "-isystem",
@@ -194,6 +201,40 @@ cc_library(
         "//HexapodController2:bus",
         "@com_google_absl//absl/types:span",
     ],
+)
+
+cc_library(
+    name = "test_lib",
+    hdrs = ["test_lib.h"],
+    linkstatic = 1,
+)
+
+py_wrap_cc(
+    name = "pywrap_test_lib",
+    srcs = ["pywrap_test_lib.i"],
+    copts = select({
+        ":pi_build": [
+            "-isystem",
+            "external/raspberry_pi/sysroot/usr/include/python3.5m",
+            "-isystem",
+            "external/raspberry_pi/sysroot/usr/include/arm-linux-gnueabihf/python3.5m",
+        ],
+        "//conditions:default": [
+            "-isystem",
+            "/usr/include/python3.7m",
+        ],
+    }),
+    deps = [
+        ":test_lib",
+        "@org_llvm_libcxx//:libcxx",
+    ],
+)
+
+par_binary(
+    name = "py_test_lib",
+    srcs = ["py_test_lib.py"],
+    zip_safe = False,
+    deps = [":pywrap_test_lib"],
 )
 
 cc_binary(
