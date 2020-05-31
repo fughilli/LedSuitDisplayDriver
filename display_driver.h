@@ -34,6 +34,26 @@ namespace led_driver {
 class DisplayDriver {
 public:
   enum Color { kWhite = 0, kBlack, kInvert };
+
+  DisplayDriver(std::shared_ptr<i2c::Bus> i2c_bus)
+      : i2c_bus_(std::move(i2c_bus)) {
+    std::fill(display_buffer_.begin(), display_buffer_.end(), 0);
+  }
+  DisplayDriver(std::string i2c_dev)
+      : DisplayDriver(std::make_shared<i2c::Bus>(i2c_dev)) {}
+
+  bool Initialize() const;
+  bool RenderImage(absl::Span<const uint8_t> image);
+  bool RenderImage(const std::vector<uint8_t> image);
+  std::pair<int, int> GetSize() const;
+  bool DrawPixel(int x, int y, Color color);
+  bool Update() const;
+
+private:
+  constexpr static int kDisplayWidth = 128;
+  constexpr static int kDisplayHeight = 32;
+  constexpr static uint8_t kDeviceAddress = 0x3c;
+
   enum class CommandId : uint8_t {
     kMemoryMode = 0x20,
     kColumnAddr = 0x21,
@@ -68,33 +88,15 @@ public:
     kActivateScroll = 0x2F,
     kSetVerticalScrollArea = 0xA3,
   };
+
   struct Command {
     CommandId id;
     std::vector<uint8_t> arguments;
   };
 
-  DisplayDriver(std::shared_ptr<i2c::Bus> i2c_bus)
-      : i2c_bus_(std::move(i2c_bus)) {
-    uint8_t pixel = 0;
-    for (auto &byte : display_buffer_) {
-      byte = pixel++;
-    }
-  }
-
-  bool Initialize();
-  bool RenderImage(std::vector<uint8_t> image) { return false; }
-  bool DrawPixel(int x, int y, Color color) { return false; }
-  bool Update();
-
-private:
-  constexpr static int kDisplayWidth = 128;
-  constexpr static int kDisplayHeight = 32;
-  constexpr static uint8_t kDeviceAddress = 0x3c;
-
-  bool SendNakedCommand(uint8_t command);
-  bool SendCommand(Command command);
-  bool SendCommand(absl::Span<const Command> commands);
-  bool SendData(absl::Span<const uint8_t> data);
+  bool SendCommand(Command command) const;
+  bool SendCommand(absl::Span<const Command> commands) const;
+  bool SendData(absl::Span<const uint8_t> data) const;
 
   std::shared_ptr<i2c::Bus> i2c_bus_;
   std::array<uint8_t, kDisplayWidth * kDisplayHeight / 8> display_buffer_;

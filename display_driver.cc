@@ -31,76 +31,33 @@
   } while (0)
 
 namespace led_driver {
-namespace {
-std::ostream &operator<<(std::ostream &os, absl::Span<const uint8_t> span) {
-  std::stringstream output_string;
-  output_string << std::hex << "[";
-  for (int i = 0; i < span.size(); ++i) {
-    output_string << static_cast<const unsigned int>(span[i]);
-    if (i < span.size() - 1) {
-      output_string << ",";
-    }
-  }
-  output_string << "]";
-  return os << output_string.str();
-}
-template <typename T>
-std::ostream &operator<<(std::ostream &os, absl::Span<const T> span) {
-  std::stringstream output_string;
-  output_string << std::hex << "[";
-  for (int i = 0; i < span.size(); ++i) {
-    output_string << span[i];
-    if (i < span.size() - 1) {
-      output_string << ",";
-    }
-  }
-  output_string << "]";
-  return os << output_string.str();
-}
-} // namespace
+constexpr int DisplayDriver::kDisplayWidth;
+constexpr int DisplayDriver::kDisplayHeight;
 
-bool DisplayDriver::SendNakedCommand(uint8_t command) {
-  std::cout << "Sending naked commands..." << std::endl;
-  std::vector<uint8_t> command_buffer_data;
-  command_buffer_data.push_back(0);
-  command_buffer_data.push_back(command);
-  std::cout << "Final commands buffer: "
-            << absl::Span<const uint8_t>(command_buffer_data) << std::endl;
-  return i2c_bus_->Write(kDeviceAddress, command_buffer_data);
-}
-
-bool DisplayDriver::SendCommand(Command command) {
+bool DisplayDriver::SendCommand(Command command) const {
   return SendCommand(absl::Span<const Command>({command}));
 }
 
-bool DisplayDriver::SendCommand(absl::Span<const Command> commands) {
-  std::cout << "Sending commands..." << std::endl;
+bool DisplayDriver::SendCommand(absl::Span<const Command> commands) const {
   std::vector<uint8_t> command_buffer_data;
   command_buffer_data.push_back(0);
   for (auto &command : commands) {
-    std::cout << "Adding command: " << std::hex
-              << static_cast<const unsigned int>(command.id) << std::endl;
     command_buffer_data.push_back(static_cast<const uint8_t>(command.id));
-    std::cout << "Arguments: " << command.arguments << std::endl;
     command_buffer_data.insert(command_buffer_data.end(),
                                command.arguments.begin(),
                                command.arguments.end());
   }
-  std::cout << "Final commands buffer: "
-            << absl::Span<const uint8_t>(command_buffer_data) << std::endl;
   return i2c_bus_->Write(kDeviceAddress, command_buffer_data);
 }
 
-bool DisplayDriver::SendData(absl::Span<const uint8_t> data) {
-  std::cout << "Sending data..." << std::endl;
+bool DisplayDriver::SendData(absl::Span<const uint8_t> data) const {
   std::vector<uint8_t> data_send_buffer;
   data_send_buffer.push_back(0x40);
   data_send_buffer.insert(data_send_buffer.end(), data.begin(), data.end());
-  std::cout << "Data: " << data_send_buffer << std::endl;
   return i2c_bus_->Write(kDeviceAddress, data_send_buffer);
 }
 
-bool DisplayDriver::Update() {
+bool DisplayDriver::Update() const {
   CHECK_RETURN(SendCommand({
       {CommandId::kPageAddr, {0, 0xFF}},
       {CommandId::kColumnAddr, {0, kDisplayWidth - 1}},
@@ -108,7 +65,7 @@ bool DisplayDriver::Update() {
   return SendData(display_buffer_);
 }
 
-bool DisplayDriver::Initialize() {
+bool DisplayDriver::Initialize() const {
   return SendCommand({
       {CommandId::kDisplayOff, {}},
       {CommandId::kSetDisplayClockDiv, {0x80}},
@@ -131,4 +88,51 @@ bool DisplayDriver::Initialize() {
       {CommandId::kDisplayOn, {}},
   });
 }
+
+std::pair<int, int> DisplayDriver::GetSize() const {
+  return std::make_pair(kDisplayWidth, kDisplayHeight);
+}
+
+bool DisplayDriver::RenderImage(absl::Span<const uint8_t> image) {
+  if (image.size() != display_buffer_.size()) {
+    return false;
+  }
+
+  std::copy(image.begin(), image.end(), display_buffer_.begin());
+  return true;
+}
+
+bool DisplayDriver::RenderImage(const std::vector<uint8_t> image) {
+  return RenderImage(absl::Span<const uint8_t>(image.data(), image.size()));
+}
+
+bool DisplayDriver::DrawPixel(int x, int y, Color color) {
+  if (x < 0 || x >= kDisplayWidth || y < 0 || y >= kDisplayHeight) {
+    return false;
+  }
+  constexpr int kBlockWidth = 4;
+  constexpr int kBlockHeight = 8;
+  constexpr int kBlockCountX = kDisplayWidth / kBlockWidth;
+  constexpr int kBlockCountY = kDisplayHeight / kBlockHeight;
+
+  int block_index = (x / kBlockWidth) + kBlockCountX * (y / kBlockHeight);
+  int block_pixel_index = kBlockHeight * (x % kBlockWidth) + (y % kBlockHeight);
+  int bit_offset =
+      block_index * (kBlockWidth * kBlockHeight) + block_pixel_index;
+  int byte_offset = bit_offset / 8;
+  bit_offset %= 8;
+  switch (color) {
+  case Color::kBlack:
+    display_buffer_[byte_offset] &= ~(1 << bit_offset);
+    break;
+  case Color::kWhite:
+    display_buffer_[byte_offset] |= (1 << bit_offset);
+    break;
+  case Color::kInvert:
+    display_buffer_[byte_offset] ^= (1 << bit_offset);
+    break;
+  }
+  return true;
+}
+
 } // namespace led_driver
