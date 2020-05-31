@@ -7,6 +7,19 @@ config_setting(
     values = {"cpu": "armeabihf"},
 )
 
+PYWRAP_COPTS = select({
+    ":pi_build": [
+        "-isystem",
+        "external/raspberry_pi/sysroot/usr/include/python3.5m",
+        "-isystem",
+        "external/raspberry_pi/sysroot/usr/include/arm-linux-gnueabihf/python3.5m",
+    ],
+    "//conditions:default": [
+        "-isystem",
+        "/usr/include/python3.7m",
+    ],
+})
+
 VIDEOCORE_COPTS = [
     "-isystem",
     "external/raspberry_pi/sysroot/opt/vc/include",
@@ -203,6 +216,26 @@ cc_library(
     ],
 )
 
+py_wrap_cc(
+    name = "pywrap_display_driver",
+    srcs = ["pywrap_display_driver.i"],
+    copts = PYWRAP_COPTS,
+    deps = [
+        ":display_driver",
+        "@org_llvm_libcxx//:libcxx",
+    ],
+)
+
+par_binary(
+    name = "py_display_driver",
+    srcs = ["py_display_driver.py"],
+    exclude_prefixes = [
+        "external/raspberry_pi/sysroot",
+    ],
+    zip_safe = False,
+    deps = [":pywrap_display_driver"],
+)
+
 cc_library(
     name = "test_lib",
     hdrs = ["test_lib.h"],
@@ -212,18 +245,7 @@ cc_library(
 py_wrap_cc(
     name = "pywrap_test_lib",
     srcs = ["pywrap_test_lib.i"],
-    copts = select({
-        ":pi_build": [
-            "-isystem",
-            "external/raspberry_pi/sysroot/usr/include/python3.5m",
-            "-isystem",
-            "external/raspberry_pi/sysroot/usr/include/arm-linux-gnueabihf/python3.5m",
-        ],
-        "//conditions:default": [
-            "-isystem",
-            "/usr/include/python3.7m",
-        ],
-    }),
+    copts = PYWRAP_COPTS,
     deps = [
         ":test_lib",
         "@org_llvm_libcxx//:libcxx",
