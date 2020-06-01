@@ -16,28 +16,49 @@ def GetIpAddress():
 
 
 def DrawImage(image, offset, threshold):
-    for x in range(image.size[0]):
-        draw_x = x + offset[0]
-        if draw_x < 0 or draw_x >= 128:
-            continue
-        for y in range(image.size[1]):
-            draw_y = y + offset[1]
-            if draw_y < 0 or draw_y >= 32:
-                continue
-            display_driver.DrawPixel(draw_x, draw_y,
-                                     0 if image.getpixel((x, y)) > threshold
+    offset = (int(offset[0]), int(offset[1]))
+    cropped_image = image.crop(
+        (offset[0], offset[1], offset[0] + 128, offset[1] + 32))
+    for x in range(cropped_image.size[0]):
+        for y in range(cropped_image.size[1]):
+            display_driver.DrawPixel(x, y,
+                                     0 if cropped_image.getpixel((x, y)) > threshold
                                      else 1)
 
 
-def DrawText(text, size=10):
-    font = ImageFont.truetype(
-        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', size)
+def DrawText(text, offset, size=10, font=None):
+    if font is None:
+        font = ImageFont.truetype(
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', size)
     image = Image.new('L', (128, 32), 0)
     draw = ImageDraw.Draw(image)
-    draw.text((0, 0), text, fill=255, font=font)
+    draw.text(offset, text, fill=255, font=font)
 
     DrawImage(image, (0, 0), 128)
     display_driver.Update()
+
+
+def ScrollText(text, offset, seconds, framerate, size=10):
+    font = ImageFont.truetype(
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', size)
+    string_size = font.getsize(text)
+    scroll_target_x = 128 - string_size[0]
+    scroll_pixels_per_second = scroll_target_x / seconds
+    scroll_pixels_per_frame = scroll_pixels_per_second / framerate
+    frame_times = []
+    for x in np.arange(0, scroll_target_x + scroll_pixels_per_frame, scroll_pixels_per_frame):
+        frame_start_time = time.clock_gettime(0)
+        DrawText(text, np.array(offset) + np.array((x, 0)), size, font)
+        display_driver.Update()
+        frame_time = (time.clock_gettime(0) - frame_start_time)
+
+        frame_times.append(frame_time)
+
+        if (frame_time > (1 / framerate)):
+            continue
+
+        time.sleep((1 / framerate) - frame_time)
+    print("Average FPS:", 1 / np.average(frame_times))
 
 
 def ClearDisplay():
@@ -53,7 +74,7 @@ def DrawRotating(image, seconds, framerate, radius):
     ts = np.arange(0, seconds, 1 / framerate)
     vecs = radius * np.e ** (1j * np.pi * ts)
     vecs_xy = vecs.view('(2,)float')
-    vecs_xy = vecs_xy - ((np.array(image.size) - np.array((128, 32))) / 2)
+    vecs_xy = vecs_xy + ((np.array(image.size) - np.array((128, 32))) / 2)
 
     frame_times = []
     for x, y in vecs_xy:
