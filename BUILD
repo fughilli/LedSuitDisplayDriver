@@ -2,13 +2,8 @@ load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
 load("//:py_wrap_cc.bzl", "py_wrap_cc")
 load("@subpar//:subpar.bzl", "par_binary")
 
-config_setting(
-    name = "pi_build",
-    values = {"cpu": "armeabihf"},
-)
-
 PYWRAP_COPTS = select({
-    ":pi_build": [
+    "//:pi_build": [
         "-isystem",
         "external/raspberry_pi/sysroot/usr/include/python3.5m",
         "-isystem",
