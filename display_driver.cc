@@ -135,4 +135,8 @@ bool DisplayDriver::DrawPixel(int x, int y, Color color) {
   return true;
 }
 
+void DisplayDriver::Clear() {
+  std::fill(display_buffer_.begin(), display_buffer_.end(), 0);
+}
+
 } // namespace led_driver

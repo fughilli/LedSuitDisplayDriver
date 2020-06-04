@@ -37,7 +37,7 @@ public:
 
   DisplayDriver(std::shared_ptr<i2c::Bus> i2c_bus)
       : i2c_bus_(std::move(i2c_bus)) {
-    std::fill(display_buffer_.begin(), display_buffer_.end(), 0);
+    Clear();
   }
   DisplayDriver(std::string i2c_dev)
       : DisplayDriver(std::make_shared<i2c::Bus>(i2c_dev)) {}
@@ -47,6 +47,7 @@ public:
   bool RenderImage(const std::vector<uint8_t> image);
   std::pair<int, int> GetSize() const;
   bool DrawPixel(int x, int y, Color color);
+  void Clear();
   bool Update() const;
 
 private:

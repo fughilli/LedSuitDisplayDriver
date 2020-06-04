@@ -24,16 +24,32 @@
 
 #include "HexapodController2/bus.h"
 #include "display_driver.h"
+#include "gfx.h"
+#include "ugfx/boards/base/framebuffer_cpp_shim/ugfx_framebuffer.h"
 
 namespace led_driver {
 
 extern "C" int main(int argc, char *argv[]) {
   auto bus = std::make_shared<i2c::Bus>("/dev/i2c-1");
   auto display_driver = std::make_shared<DisplayDriver>(bus);
+  auto framebuffer = std::make_shared<ugfx::UgfxFramebuffer>(128, 32);
+  ugfx::RegisterUgfxFramebuffer(framebuffer);
 
   std::cout << "Initializing display: " << display_driver->Initialize()
             << std::endl;
-  std::cout << "Updating display: " << display_driver->Update() << std::endl;
+
+  gfxInit();
+  font_t font = gdispOpenFont("DejaVuSans10");
+  gdispClear(Black);
+  gdispDrawLine(10, 10, 25, 25, White);
+  gdispDrawString(30, 10, "Hello world", font, White);
+
+  framebuffer->CopyByPixels([&display_driver](int x, int y) {
+    return display_driver->DrawPixel(x, y, DisplayDriver::Color::kWhite);
+  });
+  for (int i = 0; i < 100; ++i) {
+    std::cout << "Updating display: " << display_driver->Update() << std::endl;
+  }
 
   return 0;
 }

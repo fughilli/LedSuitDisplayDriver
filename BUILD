@@ -1,6 +1,7 @@
 load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
 load("//:py_wrap_cc.bzl", "py_wrap_cc")
 load("@subpar//:subpar.bzl", "par_binary")
+load("//ugfx:variables.bzl", "UGFX_COPTS")
 
 PYWRAP_COPTS = select({
     "//:pi_build": [
@@ -257,11 +258,12 @@ par_binary(
 cc_binary(
     name = "test_display_driver",
     srcs = ["test_display_driver.cc"],
-    copts = SYSROOT_COPTS,
+    copts = UGFX_COPTS + SYSROOT_COPTS,
     linkstatic = 1,
     deps = [
         ":display_driver",
         "//HexapodController2:bus",
+        "//ugfx",
         "@org_llvm_libcxx//:libcxx",
     ],
 )
