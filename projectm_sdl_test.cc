@@ -152,7 +152,9 @@ extern "C" int main(int argc, char *argv[]) {
       return 1;
     }
 
+    SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
     SDL_GLContext opengl_context = SDL_GL_CreateContext(window.get());
+    SDL_GLContext compile_context = SDL_GL_CreateContext(window.get());
     SDL_GL_MakeCurrent(window.get(), opengl_context);
 
     EnableVsync();
@@ -178,6 +180,13 @@ extern "C" int main(int argc, char *argv[]) {
     settings.presetURL = absl::GetFlag(FLAGS_preset_path);
     settings.menuFontURL = absl::GetFlag(FLAGS_menu_font_path);
     settings.titleFontURL = absl::GetFlag(FLAGS_title_font_path);
+
+    settings.activateCompileContext = [&compile_context, &window]() {
+        SDL_GL_MakeCurrent(window.get(), compile_context);
+    };
+    settings.deactivateCompileContext = [&compile_context, &window]() {
+        SDL_GL_MakeCurrent(window.get(), 0);
+    };
 
     int flags = 0;
     std::cout << "Initializing projectM" << std::endl;
