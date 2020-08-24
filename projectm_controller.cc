@@ -1,6 +1,6 @@
 //
-// LED Suit Driver - Embedded host driver software for Kevin's LED suit controller.
-// Copyright (C) 2019-2020 Kevin Balke
+// LED Suit Driver - Embedded host driver software for Kevin's LED suit
+// controller. Copyright (C) 2019-2020 Kevin Balke
 //
 // This file is part of LED Suit Driver.
 //
@@ -37,19 +37,24 @@ bool ProjectmController::Initialize() {
   search_params.searchmask = SEARCH_NAME | SEARCH_ONLYVISIBLE;
   search_params.limit = 0;
 
-  Window *return_windows;
+  std::shared_ptr<Window> return_windows;
   unsigned int num_return_windows;
 
-  if (xdo_search_windows(xdo_, &search_params, &return_windows,
-                         &num_return_windows)) {
-    std::cerr << "Failed to search windows" << std::endl;
-    return false;
+  {
+    Window *return_windows_raw = nullptr;
+
+    if (xdo_search_windows(xdo_, &search_params, &return_windows_raw,
+                           &num_return_windows)) {
+      std::cerr << "Failed to search windows" << std::endl;
+      return false;
+    }
+    return_windows.reset(return_windows_raw);
   }
 
   std::cout << "Found " << num_return_windows << " windows" << std::endl;
 
   projectm_windows_.resize(num_return_windows);
-  std::copy(return_windows, return_windows + num_return_windows,
+  std::copy(return_windows.get(), return_windows.get() + num_return_windows,
             projectm_windows_.begin());
 
   return true;
@@ -71,4 +76,4 @@ bool ProjectmController::TriggerNextPreset() {
   return false;
 }
 
-} // namespace led_driver
+}  // namespace led_driver
