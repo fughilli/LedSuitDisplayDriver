@@ -22,8 +22,10 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <SDL2/SDL.h>
+
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -31,15 +33,13 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <fstream>
-
-#include "libprojectm/projectM.hpp"
-#include "performance_timer.h"
-#include "pulseaudio_interface.h"
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/types/span.h"
+#include "libprojectm/projectM.hpp"
+#include "performance_timer.h"
+#include "pulseaudio_interface.h"
 
 ABSL_FLAG(std::string, preset_path, "/usr/share/projectM/presets",
           "Path where preset files are located");
@@ -213,6 +213,8 @@ extern "C" int main(int argc, char *argv[]) {
     bool exit_event_received = false;
     PerformanceTimer<uint32_t> frame_timer;
     int late_frame_counter = 0;
+    int late_frames_to_skip_preset =
+        absl::GetFlag(FLAGS_late_frames_to_skip_preset);
     while (!exit_event_received) {
       frame_timer.Start(SDL_GetTicks());
       glClearColor(0.0, 0.0, 0.0, 0.0);
@@ -268,10 +270,12 @@ extern "C" int main(int argc, char *argv[]) {
 
       uint32_t frame_time = frame_timer.End(SDL_GetTicks());
       if (frame_time >= kTargetFrameTimeMs) {
+        if (late_frames_to_skip_preset <= 0) {
+          continue;
+        }
         if (frame_time > (kTargetFrameTimeMs + 10)) {
           ++late_frame_counter;
-          if (late_frame_counter >=
-              absl::GetFlag(FLAGS_late_frames_to_skip_preset)) {
+          if (late_frame_counter >= late_frames_to_skip_preset) {
             std::cerr << "Had too many late frames in a row ("
                       << late_frame_counter << "), skipping preset"
                       << std::endl;
