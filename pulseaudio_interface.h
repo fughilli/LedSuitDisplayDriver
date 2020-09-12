@@ -23,32 +23,60 @@
 
 #include <pulse/pulseaudio.h>
 
-#include "absl/types/span.h"
-
+#include <condition_variable>
+#include <mutex>
 #include <string>
+
+#include "absl/types/span.h"
 
 namespace led_driver {
 
 class PulseAudioInterface {
-public:
+ public:
   using SampleCallbackType = std::function<void(absl::Span<const float>)>;
   PulseAudioInterface(std::string server_name, std::string device_name,
                       std::string stream_name, int channel_count,
                       SampleCallbackType sample_callback)
       : server_name_(std::move(server_name)),
         device_name_(std::move(device_name)),
-        stream_name_(std::move(stream_name)), channel_count_(channel_count),
+        stream_name_(std::move(stream_name)),
+        channel_count_(channel_count),
         sample_callback_(std::move(sample_callback)) {
     memset(&sample_spec_, 0, sizeof(sample_spec_));
     sample_spec_.format = PA_SAMPLE_FLOAT32LE;
     sample_spec_.rate = 44100;
     sample_spec_.channels = channel_count_;
+    succeeded_.store(false);
+    marked_.store(false);
   }
   bool Initialize();
   bool Start();
   void Stop();
 
-private:
+  void MarkFailed() {
+    std::unique_lock<std::mutex> lock(succeeded_mu_);
+    succeeded_.store(false);
+    marked_.store(true);
+    succeeded_cv_.notify_one();
+  }
+
+  void MarkSucceeded() {
+    if (succeeded_.load()) {
+      return;
+    }
+    std::unique_lock<std::mutex> lock(succeeded_mu_);
+    succeeded_.store(true);
+    marked_.store(true);
+    succeeded_cv_.notify_one();
+  }
+
+  bool WaitReady() {
+    std::unique_lock<std::mutex> lock(succeeded_mu_);
+    succeeded_cv_.wait(lock, [&] { return marked_.load(); });
+    return succeeded_.load();
+  }
+
+ private:
   void ContextStateCallback(pa_context *new_context);
   static void ContextStateCallbackStatic(pa_context *new_context,
                                          void *userdata) {
@@ -79,7 +107,12 @@ private:
   pa_stream *stream_;
   pa_mainloop_api *mainloop_api_;
   pa_threaded_mainloop *mainloop_;
+
+  std::atomic_bool succeeded_;
+  std::atomic_bool marked_;
+  std::mutex succeeded_mu_;
+  std::condition_variable succeeded_cv_;
 };
-} // namespace led_driver
+}  // namespace led_driver
 
 #endif

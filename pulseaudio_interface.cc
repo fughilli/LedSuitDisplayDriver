@@ -55,10 +55,12 @@ bool PulseAudioInterface::Initialize() {
 
 void PulseAudioInterface::StreamReadCallback(pa_stream *new_stream,
                                              size_t length) {
+  MarkSucceeded();
   const void *data;
   if (pa_stream_peek(new_stream, &data, &length) < 0) {
     std::cerr << "Failed to read from stream" << std::endl;
-    abort();
+    MarkFailed();
+    return;
   }
 
   if (length == 0) {
@@ -79,30 +81,34 @@ void PulseAudioInterface::StreamStateCallback(pa_stream *new_stream) {
   std::cout << "StreamStateCallback" << std::endl;
   auto stream_state = pa_stream_get_state(new_stream);
   switch (stream_state) {
-  case PA_STREAM_CREATING:
-  case PA_STREAM_TERMINATED:
-    break;
+    case PA_STREAM_CREATING:
+    case PA_STREAM_TERMINATED:
+      break;
 
-  case PA_STREAM_READY:
-    const pa_buffer_attr *attributes;
-    if ((attributes = pa_stream_get_buffer_attr(new_stream)) == nullptr) {
-      std::cerr << "Failed to get stream buffer attributes" << std::endl;
-      abort();
-    }
-    std::cout << "Stream buffer attributes: maxlength=" << attributes->maxlength
-              << ", fragsize=" << attributes->fragsize << std::endl;
-    break;
+    case PA_STREAM_READY:
+      const pa_buffer_attr *attributes;
+      if ((attributes = pa_stream_get_buffer_attr(new_stream)) == nullptr) {
+        std::cerr << "Failed to get stream buffer attributes" << std::endl;
+        MarkFailed();
+        return;
+      }
+      std::cout << "Stream buffer attributes: maxlength="
+                << attributes->maxlength
+                << ", fragsize=" << attributes->fragsize << std::endl;
+      break;
 
-  case PA_STREAM_FAILED:
-    std::cerr << "Stream error: "
-              << pa_strerror(
-                     pa_context_errno(pa_stream_get_context(new_stream)))
-              << std::endl;
-    abort();
+    case PA_STREAM_FAILED:
+      std::cerr << "Stream error: "
+                << pa_strerror(
+                       pa_context_errno(pa_stream_get_context(new_stream)))
+                << std::endl;
+      MarkFailed();
+      return;
 
-  default:
-    std::cerr << "Unhandled state: " << stream_state << std::endl;
-    abort();
+    default:
+      std::cerr << "Unhandled state: " << stream_state << std::endl;
+      MarkFailed();
+      return;
   }
 }
 
@@ -116,63 +122,68 @@ void PulseAudioInterface::ContextStateCallback(pa_context *new_context) {
   const pa_sample_spec *actual_sample_spec_ptr = nullptr;
 
   switch (pa_context_get_state(new_context)) {
-  case PA_CONTEXT_CONNECTING:
-  case PA_CONTEXT_AUTHORIZING:
-  case PA_CONTEXT_SETTING_NAME:
-    break;
+    case PA_CONTEXT_CONNECTING:
+    case PA_CONTEXT_AUTHORIZING:
+    case PA_CONTEXT_SETTING_NAME:
+      break;
 
-  case PA_CONTEXT_READY:
-    std::cout << "Creating stream with sample spec: format="
-              << sample_spec_.format << " rate=" << sample_spec_.rate
-              << " channels=" << static_cast<int>(sample_spec_.channels)
-              << std::endl;
-    if ((stream_ = pa_stream_new(new_context, stream_name_.c_str(),
-                                 &sample_spec_, nullptr)) == nullptr) {
-      std::cerr << "Failed to create stream" << std::endl;
-      abort();
-    }
+    case PA_CONTEXT_READY:
+      std::cout << "Creating stream with sample spec: format="
+                << sample_spec_.format << " rate=" << sample_spec_.rate
+                << " channels=" << static_cast<int>(sample_spec_.channels)
+                << std::endl;
+      if ((stream_ = pa_stream_new(new_context, stream_name_.c_str(),
+                                   &sample_spec_, nullptr)) == nullptr) {
+        std::cerr << "Failed to create stream" << std::endl;
+        MarkFailed();
+        return;
+      }
 
-    std::cout << "Setting up callbacks" << std::endl;
-    pa_stream_set_state_callback(
-        stream_, PulseAudioInterface::StreamStateCallbackStatic, this);
-    pa_stream_set_read_callback(
-        stream_, PulseAudioInterface::StreamReadCallbackStatic, this);
+      std::cout << "Setting up callbacks" << std::endl;
+      pa_stream_set_state_callback(
+          stream_, PulseAudioInterface::StreamStateCallbackStatic, this);
+      pa_stream_set_read_callback(
+          stream_, PulseAudioInterface::StreamReadCallbackStatic, this);
 
-    buffer_attributes.maxlength = -1;
-    buffer_attributes.fragsize = 1;
+      buffer_attributes.maxlength = -1;
+      buffer_attributes.fragsize = 1;
 
-    std::cout << "Connecting recording stream" << std::endl;
-    if (pa_stream_connect_record(stream_, device_name_.c_str(),
-                                 &buffer_attributes,
-                                 PA_STREAM_ADJUST_LATENCY) < 0) {
-      std::cerr << "Failed to connect recording stream: "
+      std::cout << "Connecting recording stream" << std::endl;
+      if (pa_stream_connect_record(stream_, device_name_.c_str(),
+                                   &buffer_attributes,
+                                   PA_STREAM_ADJUST_LATENCY) < 0) {
+        std::cerr << "Failed to connect recording stream: "
+                  << pa_strerror(pa_context_errno(new_context)) << std::endl;
+        MarkFailed();
+        return;
+      }
+
+      if ((actual_sample_spec_ptr = pa_stream_get_sample_spec(stream_)) ==
+          nullptr) {
+        std::cerr << "Unable to read actual sample spec from stream"
+                  << std::endl;
+        MarkFailed();
+        return;
+      }
+      sample_spec_ = *actual_sample_spec_ptr;
+      std::cout << "Sample spec: format=" << sample_spec_.format
+                << " rate=" << sample_spec_.rate
+                << " channels=" << static_cast<int>(sample_spec_.channels)
+                << std::endl;
+
+      break;
+
+    case PA_CONTEXT_TERMINATED:
+    case PA_CONTEXT_FAILED:
+      std::cerr << "PulseAudio connection terminated: "
                 << pa_strerror(pa_context_errno(new_context)) << std::endl;
-      abort();
-    }
+      // TODO: mutex query to get this event
+      MarkFailed();
+      return;
 
-    if ((actual_sample_spec_ptr = pa_stream_get_sample_spec(stream_)) ==
-        nullptr) {
-      std::cerr << "Unable to read actual sample spec from stream" << std::endl;
-      abort();
-    }
-    sample_spec_ = *actual_sample_spec_ptr;
-    std::cout << "Sample spec: format=" << sample_spec_.format
-              << " rate=" << sample_spec_.rate
-              << " channels=" << static_cast<int>(sample_spec_.channels)
-              << std::endl;
-
-    break;
-
-  case PA_CONTEXT_TERMINATED:
-  case PA_CONTEXT_FAILED:
-    std::cerr << "PulseAudio connection terminated: "
-              << pa_strerror(pa_context_errno(new_context)) << std::endl;
-    // TODO: mutex query to get this event
-    abort();
-
-  case PA_CONTEXT_UNCONNECTED:
-    std::cerr << "PulseAudio context unconnected" << std::endl;
-    break;
+    case PA_CONTEXT_UNCONNECTED:
+      std::cerr << "PulseAudio context unconnected" << std::endl;
+      break;
   }
 }
 
@@ -182,4 +193,4 @@ bool PulseAudioInterface::Start() {
 
 void PulseAudioInterface::Stop() { pa_threaded_mainloop_stop(mainloop_); }
 
-} // namespace led_driver
+}  // namespace led_driver
