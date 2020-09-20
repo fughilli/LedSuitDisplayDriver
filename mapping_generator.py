@@ -1,4 +1,3 @@
-
 # LED Suit Driver - Embedded host driver software for Kevin's LED suit controller.
 # Copyright (C) 2019-2020 Kevin Balke
 #
@@ -102,8 +101,16 @@ class MappingGenerator(object):
                                        ).astype(numpy.int32))
 
     def DrawSamples(self, samples):
-        self.screen.fill((0,)*3)
-        for i, sample in enumerate(samples):
+        self.screen.fill((0, ) * 3)
+        samples_flattened = numpy.array(list(samples))
+        min_sample = numpy.amin(samples_flattened, axis=0)
+        max_sample = numpy.amax(samples_flattened, axis=0)
+        range_sample = max_sample - min_sample
+        pygame.draw.rect(
+            self.screen, (255, 255, 255),
+            (min_sample[0], min_sample[1], range_sample[0], range_sample[1]),
+            2)
+        for i, sample in enumerate(samples_flattened):
             self.DrawSample(i, sample)
 
     def ExportMapping(self):
