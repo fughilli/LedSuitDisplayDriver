@@ -61,6 +61,7 @@ cc_library(
 cc_library(
     name = "performance_timer",
     hdrs = ["performance_timer.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -196,6 +197,7 @@ cc_library(
         "-lpulse",
     ],
     linkstatic = 1,
+    visibility = ["//visibility:public"],
     deps = [
         "@com_google_absl//absl/types:span",
     ],
