@@ -24,6 +24,7 @@
 #include <pulse/pulseaudio.h>
 
 #include <condition_variable>
+#include <cstring>
 #include <mutex>
 #include <string>
 
