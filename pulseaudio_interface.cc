@@ -74,7 +74,9 @@ void PulseAudioInterface::StreamReadCallback(pa_stream *new_stream,
   sample_callback_(absl::Span<const float>(
       reinterpret_cast<const float *>(data), length / sizeof(float)));
 
-  pa_stream_drop(new_stream);
+  if(pa_stream_drop(new_stream) != 0) {
+    std::cerr << "Failed to drop frame from stream" << std::endl;
+  }
 }
 
 void PulseAudioInterface::StreamStateCallback(pa_stream *new_stream) {
@@ -191,6 +193,9 @@ bool PulseAudioInterface::Start() {
   return pa_threaded_mainloop_start(mainloop_) == 0;
 }
 
-void PulseAudioInterface::Stop() { pa_threaded_mainloop_stop(mainloop_); }
+void PulseAudioInterface::Stop() {
+  pa_threaded_mainloop_stop(mainloop_);
+  pa_threaded_mainloop_free(mainloop_);
+}
 
 }  // namespace led_driver
