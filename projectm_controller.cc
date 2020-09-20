@@ -67,7 +67,7 @@ bool ProjectmController::TriggerNextPreset() {
       std::cerr << "Failed to focus window";
       return false;
     }
-    if (xdo_send_keysequence_window(xdo_, window, "n", 12000)) {
+    if (xdo_send_keysequence_window(xdo_, window, "r", 12000)) {
       std::cerr << "Failed to send key sequence";
       return false;
     }
