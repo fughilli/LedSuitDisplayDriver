@@ -61,6 +61,8 @@ ABSL_FLAG(int, mesh_x, 6, "ProjectM mesh size in X");
 ABSL_FLAG(int, mesh_y, 6, "ProjectM mesh size in Y");
 ABSL_FLAG(int, window_width, 100, "ProjectM window width");
 ABSL_FLAG(int, window_height, 100, "ProjectM window height");
+ABSL_FLAG(int, window_x, 0, "ProjectM window position in X");
+ABSL_FLAG(int, window_y, 0, "ProjectM window position in Y");
 ABSL_FLAG(int, late_frames_to_skip_preset, 20,
           "Number of late frames required to skip preset");
 
@@ -142,7 +144,7 @@ extern "C" int main(int argc, char *argv[]) {
     }
 
     window.reset(SDL_CreateWindow(
-        "ProjectM", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        "ProjectM", absl::GetFlag(FLAGS_window_x), absl::GetFlag(FLAGS_window_y),
         absl::GetFlag(FLAGS_window_width), absl::GetFlag(FLAGS_window_height),
         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI |
             SDL_WINDOW_RESIZABLE));
