@@ -26,15 +26,15 @@
 #include <utility>
 #include <vector>
 
+#include "absl/flags/flag.h"
+#include "absl/flags/parse.h"
+#include "absl/types/span.h"
 #include "led_driver/led_mapping.pb.h"
 #include "pixel_utils.h"
 #include "projectm_controller.h"
 #include "spi_driver.h"
 #include "vc_capture_source.h"
 #include "visual_interest_processor.h"
-
-#include "absl/flags/flag.h"
-#include "absl/flags/parse.h"
 
 struct LedIntensity {
   LedIntensity(float intensity) : intensity(intensity) {}
@@ -80,6 +80,12 @@ ABSL_FLAG(ssize_t, cooldown_duration, 10,
           "beginning to calculate the moving average");
 ABSL_FLAG(int, raster_width, 100, "Width of the source raster, in pixels");
 ABSL_FLAG(int, raster_height, 100, "Height of the source raster, in pixels");
+ABSL_FLAG(int, raster_x, 100, "X position of the source raster, in pixels");
+ABSL_FLAG(int, raster_y, 100, "Y position of the source raster, in pixels");
+ABSL_FLAG(int, flicker_threshold, 200,
+          "Threshold against which to trigger flickering");
+ABSL_FLAG(float, flicker_ratio, 0.8f,
+          "Ratio of pixels that need to be above flicker_threshold");
 
 namespace led_driver {
 
@@ -96,16 +102,21 @@ constexpr int kDelayUs = 0;
 
 using Coordinate = std::pair<ssize_t, ssize_t>;
 
-} // namespace
+}  // namespace
 
 class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
-public:
+ public:
   SpiImageBufferReceiver(std::shared_ptr<SpiDriver> spi_driver,
                          std::vector<Coordinate> coordinates,
-                         LedIntensity intensity)
+                         LedIntensity intensity, int flicker_threshold,
+                         float flicker_ratio)
       : spi_driver_(std::move(spi_driver)),
-        coordinates_(std::move(coordinates)), intensity_(intensity) {}
+        coordinates_(std::move(coordinates)),
+        intensity_(intensity),
+        flicker_threshold_(flicker_threshold),
+        flicker_ratio_(flicker_ratio) {}
   void Receive(std::shared_ptr<ImageBuffer> image_buffer) override {
+    std::vector<uint8_t> output_buffer_;
     output_buffer_.resize(kLedBufferLength + 2, 0);
 
     // LED data address + mode.
@@ -127,19 +138,45 @@ public:
       end_iter += 3;
     }
 
+    FullWhiteCompensate(
+        absl::Span<uint8_t>(&output_buffer_[2], output_buffer_.size() - 2));
+
     TransposeRedGreen(&(output_buffer_[2]), kNumLeds);
     ScalePixelValues(&(output_buffer_[2]), intensity_.intensity, kNumLeds);
     spi_driver_->Transfer(output_buffer_);
   }
 
-private:
-  constexpr static ssize_t kNumLeds = 180;
+ private:
+  void FullWhiteCompensate(absl::Span<uint8_t> output_buffer) {
+    ++flicker_counter_;
+
+    int num_over_threshold = 0;
+    for (int i = 0; i < kLedBufferLength; ++i) {
+      if (output_buffer[i] > flicker_threshold_) {
+        ++num_over_threshold;
+      }
+    }
+
+    if (num_over_threshold >
+        static_cast<int>(kLedBufferLength * flicker_ratio_)) {
+      for (int i = 0; i < kNumLeds; ++i) {
+        if ((i & kFlickerModulus) != (flicker_counter_ & kFlickerModulus)) {
+          memset(&output_buffer[i * kLedChannels], 0, kLedChannels);
+        }
+      }
+    }
+  }
+
+  constexpr static ssize_t kNumLeds = 600;
   constexpr static ssize_t kLedChannels = 3;
   constexpr static ssize_t kLedBufferLength = kNumLeds * kLedChannels;
+  constexpr static uint32_t kFlickerModulus = 0x3;
   std::shared_ptr<SpiDriver> spi_driver_;
-  std::vector<uint8_t> output_buffer_;
   std::vector<Coordinate> coordinates_;
   LedIntensity intensity_;
+  int flicker_threshold_;
+  float flicker_ratio_;
+  int flicker_counter_;
 };
 
 int main(int argc, char *argv[]) {
@@ -172,7 +209,9 @@ int main(int argc, char *argv[]) {
   }
 
   auto image_buffer_receiver = std::make_shared<SpiImageBufferReceiver>(
-      spi_driver, coordinates, absl::GetFlag(FLAGS_intensity));
+      spi_driver, coordinates, absl::GetFlag(FLAGS_intensity),
+      absl::GetFlag(FLAGS_flicker_threshold),
+      absl::GetFlag(FLAGS_flicker_ratio));
 
   if (image_buffer_receiver == nullptr) {
     std::cerr << "Failed to create image buffer receiver" << std::endl;
@@ -218,9 +257,9 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  capture_source->ConfigureCaptureRegion(0, 0,
-                                         absl::GetFlag(FLAGS_raster_width),
-                                         absl::GetFlag(FLAGS_raster_height));
+  capture_source->ConfigureCaptureRegion(
+      absl::GetFlag(FLAGS_raster_x), absl::GetFlag(FLAGS_raster_y),
+      absl::GetFlag(FLAGS_raster_width), absl::GetFlag(FLAGS_raster_height));
 
   while (1) {
     if (!capture_source->Capture()) {
@@ -230,7 +269,7 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
-} // namespace led_driver
+}  // namespace led_driver
 
 extern "C" {
 int main(int argc, char *argv[]) { return led_driver::main(argc, argv); }

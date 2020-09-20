@@ -124,6 +124,7 @@ cc_binary(
         ":visual_interest_processor",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/types:span",
         "@org_llvm_libcxx//:libcxx",
     ],
 )
