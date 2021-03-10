@@ -43,9 +43,9 @@ hdmi_drive=2
 
 #uncomment to overclock the arm. 700 MHz is the default.
 #arm_freq=900
-core_freq=450
-v3d_freq=650
-sdram_freq=450
+#core_freq=450
+#v3d_freq=650
+#sdram_freq=450
 over_voltage=2
 
 # Uncomment some or all of these to enable the optional hardware interfaces
@@ -66,5 +66,6 @@ gpu_mem=64
 #cma=300M
 dtoverlay=i2s-mmap
 dtparam=i2s=on
+
 
 #dtoverlay=sdhost,overclock_50=100

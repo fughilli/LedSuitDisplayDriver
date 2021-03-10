@@ -25,6 +25,9 @@
 #     source="alsa_input.platform-soc_sound.analog-stereo" \
 #     sink="alsa_output.platform-soc_sound.analog-stereo"
 
+set -o errexit
+set -o pipefail
+
 # Run setup. This is a no-op if setup is already complete.
 ./setup_pi.sh
 
@@ -41,18 +44,29 @@ RUN_PROJECTM=0
 
 export DISPLAY=:0
 
-function echoerr {
-  echo -e "\n***** " "$@" 1>&2
+function echoerr() {
+  echo -e "***** " "$@" 1>&2
 }
 
-echoerr "Starting visualizations..."
-xinit_command="./user_projectm.sh \
-  --window_width=$RASTER_WIDTH \
-  --window_height=$RASTER_HEIGHT"
-sudo -E xinit $xinit_command -- :0 &
-XINIT_PID=$!
+function get_microphone_source() {
+  card_name="seeed-2mic-voicecard"
+  microphone_source=$(pactl list sources |
+    grep -e Name -e "alsa\.card_name = \"${card_name}\"" |
+    grep -B1 "${card_name}" | grep -v 'monitor$' |
+    sed -n "s/^\s\+Name:\s\+\(.*\)$/\1/p")
+  echoerr "Microphone source: $microphone_source"
+  echo $microphone_source
+}
 
-trap ctrl_c INT
+function load_null_sink() {
+  sink_name="ledsuit_sink"
+  if [[ -z $(pactl list sinks | grep "${sink_name}") ]]; then
+    echoerr "Loading module-null-sink with sink name \"${sink_name}\"... "
+    pacmd load-module module-null-sink "sink_name=${sink_name}"
+    echoerr "Done."
+  fi
+  echo "${sink_name}.monitor"
+}
 
 function ctrl_c() {
   echoerr "Caught Ctrl-C; cleaning up."
@@ -68,6 +82,45 @@ function ctrl_c() {
     kill $PARECORD_PID
   fi
 }
+
+trap ctrl_c INT
+
+source_type="microphone"
+
+while [[ ! -z "$@" ]]; do
+  arg=$1
+  shift
+
+  case $arg in
+    '-s')
+      source_type=$1
+      shift
+      ;;
+
+    *)
+      passthrough_args+="${arg}"
+      ;;
+  esac
+done
+
+case $source_type in
+  'microphone')
+    SOURCE=$(get_microphone_source)
+    ;;
+
+  'network')
+    SOURCE=$(load_null_sink)
+    ;;
+esac
+echoerr "Selected source: $source_type => $SOURCE"
+
+echoerr "Starting visualizations..."
+xinit_command="./user_projectm.sh \
+  --window_width=$RASTER_WIDTH \
+  --window_height=$RASTER_HEIGHT \
+  --pulseaudio_source=${SOURCE}"
+sudo -E xinit $xinit_command -- :0 &
+XINIT_PID=$!
 
 if [[ $RUN_PROJECTM != 0 ]]; then
   # Wait for projectM to spool up so we can capture its window ID. This is done
@@ -88,7 +141,7 @@ if [[ $RUN_PROJECTM != 0 ]]; then
   #
   # (kbalke note: IME, the latency was on the order of 1s and frames arrived
   #  infrequently so as to make the visualizations jump.)
-  pactl set-source-volume alsa_input.platform-soc_sound.stereo-fallback 100%
+  pactl set-source-volume "${SOURCE}" 100%
   parecord -r -d 2 --latency-msec=10 > /dev/null
   PARECORD_PID=$!
 
@@ -127,5 +180,3 @@ fi
 if [[ ! -z "${PARECORD_PID}" ]]; then
   wait $PARECORD_PID
 fi
-
-sleep 2

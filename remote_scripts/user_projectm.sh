@@ -22,15 +22,13 @@ projectm_command="./projectm_sdl_test \
   --window_x=0 \
   --window_y=0 \
   --channel_count=1 \
-  --pulseaudio_source='alsa_input.platform-soc_sound.stereo-fallback' \
   --menu_font_path='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf' \
   --title_font_path='/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf' \
   --preset_path='/home/pi/presets'"
 
 libopendrop_command="./libopendrop \
   --window_x=0 \
-  --window_y=0 \
-  --pulseaudio_source='alsa_input.platform-soc_sound.stereo-fallback'"
+  --window_y=0"
 
 # Change comment argument to affect which program is run.
 echo "COMMAND: <$libopendrop_command $@>"

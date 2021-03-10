@@ -20,4 +20,4 @@
 #
 
 ./deploy_to_pi.sh
-ssh pi@ledsuit -t "~/run_projectm.sh"
+ssh pi@ledsuit -t "~/run_projectm.sh $@"
