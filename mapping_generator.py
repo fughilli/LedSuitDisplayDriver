@@ -66,10 +66,12 @@ class MappingGenerator(object):
         self.observer.start()
 
         font_size = 20
-        font_path = pygame.font.match_font("CourierNew")
-        self.font = pygame.font.Font(font_path, font_size)
 
-        self.screen = screen
+        if screen:
+            font_path = pygame.font.match_font("CourierNew")
+            self.font = pygame.font.Font(font_path, font_size)
+
+            self.screen = screen
 
     def __del__(self):
         self.observer.join()
@@ -131,9 +133,12 @@ class MappingGenerator(object):
 
 
 def main(argv):
-    pygame.init()
-    screen = pygame.display.set_mode((1000, 1000))
-    clock = pygame.time.Clock()
+    if not FLAGS.export_only:
+        pygame.init()
+        screen = pygame.display.set_mode((1000, 1000))
+        clock = pygame.time.Clock()
+    else:
+        screen = None
 
     mapping_generator = MappingGenerator(
         screen, FLAGS.generate_file, FLAGS.export_file)
