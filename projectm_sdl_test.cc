@@ -186,7 +186,7 @@ extern "C" int main(int argc, char *argv[]) {
     settings.activateCompileContext = [&compile_context, &window]() {
         SDL_GL_MakeCurrent(window.get(), compile_context);
     };
-    settings.deactivateCompileContext = [&compile_context, &window]() {
+    settings.deactivateCompileContext = [&window]() {
         SDL_GL_MakeCurrent(window.get(), 0);
     };
 

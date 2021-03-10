@@ -156,8 +156,10 @@ py_binary(
 cc_binary(
     name = "projectm_sdl_test",
     srcs = ["projectm_sdl_test.cc"],
-    copts = SYSROOT_COPTS,
+    copts = SYSROOT_COPTS + VIDEOCORE_COPTS,
+    data = ["//tools/cc_toolchain/raspberry_pi_sysroot:everything"],
     linkopts = [
+        "-Lexternal/raspberry_pi/sysroot/opt/vc/lib",
         "-Wl,-z,notext",
         "-lSDL2",
         "-lasound",
@@ -177,6 +179,7 @@ cc_binary(
         "-lXss",
         "-lXi",
         "-lGL",
+        "-lbcm_host",
     ],
     linkstatic = 1,
     deps = [
