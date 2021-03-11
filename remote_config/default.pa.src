@@ -44,7 +44,7 @@ load-module module-switch-on-port-available
 
 ### Automatically load driver modules depending on the hardware available
 .ifexists module-udev-detect.so
-load-module module-udev-detect tsched=0
+load-module module-udev-detect tsched=1 tsched_buffer_size=4000000
 .else
 ### Use the static hardware detection module (for systems that lack udev support)
 load-module module-detect
@@ -74,12 +74,12 @@ load-module module-native-protocol-unix
 
 ### Network access (may be configured with paprefs, so leave this commented
 ### here if you plan to use paprefs)
-load-module module-esound-protocol-tcp
-load-module module-native-protocol-tcp
-load-module module-zeroconf-discover
+load-module module-esound-protocol-tcp auth-anonymous=1
+load-module module-native-protocol-tcp auth-ip-acl=127.0.0.1;192.168.0.0/16 auth-anonymous=1
+load-module module-zeroconf-publish
 
 ### Load the RTP receiver module (also configured via paprefs, see above)
-load-module module-rtp-recv sink=ledsuit_sink
+#load-module module-rtp-recv sink=ledsuit_sink
 
 ### Load the RTP sender module (also configured via paprefs, see above)
 #load-module module-null-sink sink_name=rtp format=s16be channels=2 rate=44100 sink_properties="device.description='RTP Multicast Sink'"
