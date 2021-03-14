@@ -85,7 +85,9 @@ function ctrl_c() {
 
 trap ctrl_c INT
 
+# Default to microphone.
 source_type="microphone"
+SOURCE_ARG=""
 
 while [[ ! -z "$@" ]]; do
   arg=$1
@@ -106,10 +108,21 @@ done
 case $source_type in
   'microphone')
     SOURCE=$(get_microphone_source)
+    SOURCE_ARG="--pulseaudio_source=${SOURCE}"
     ;;
 
   'network')
     SOURCE=$(load_null_sink)
+    SOURCE_ARG="--pulseaudio_source=${SOURCE}"
+    ;;
+
+  'custom')
+    SOURCE="custom"
+    SOURCE_ARG=""
+    ;;
+
+  *)
+    echoerr "No source type specified!"
     ;;
 esac
 echoerr "Selected source: $source_type => $SOURCE"
@@ -118,7 +131,8 @@ echoerr "Starting visualizations..."
 xinit_command="./user_projectm.sh \
   --window_width=$RASTER_WIDTH \
   --window_height=$RASTER_HEIGHT \
-  --pulseaudio_source=${SOURCE}"
+  ${SOURCE_ARG} \
+  ${passthrough_args[*]}"
 sudo -E xinit $xinit_command -- :0 &
 XINIT_PID=$!
 

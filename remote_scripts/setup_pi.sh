@@ -11,7 +11,11 @@ setup_directory=".setup_scratch"
 # Packages to install with `apt-get`.
 packages="libsdl2-dev libpulse-dev xserver-xorg xinit libglm-dev git \
   libxdo-dev libraspberrypi-dev pulseaudio-utils xdotool pulseaudio \
-  x11-xserver-utils"
+  x11-xserver-utils pulseaudio-module-bluetooth pulseaudio-module-zeroconf \
+  gdbserver valgrind"
+
+# Groups to add the user "pi" to.
+groups="lp"
 
 done_something=0
 
@@ -24,6 +28,19 @@ function cleanup_dir {
     echo "Skipping cleanup of $dir_to_cleanup."
   fi
 }
+
+function is_group_member() {
+  group=$1
+  user=$2
+  grep "^${group}:x:[0-9]\+:.*${user}.*$" /etc/group 1> /dev/null 2>&1
+}
+
+for group in $groups; do
+  if ! is_group_member "${group}" pi; then
+    echo "Adding \"${user}\" to group \"${group}\"".
+    usermod -a -G "${group}" pi
+  fi
+done
 
 # Stuff that doesn't need to happen in any particular directory.
 #
@@ -40,7 +57,6 @@ function cleanup_dir {
   if [[ $needs_install == 1 ]]; then
     sudo apt-get update
     sudo apt-get install -y $packages
-    done_something=1
   fi
 }
 

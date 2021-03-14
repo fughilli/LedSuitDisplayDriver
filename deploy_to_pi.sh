@@ -25,8 +25,8 @@ set -o pipefail
 # Build the LED driver and projectM.
 bazelisk build --distinct_host_configuration --config=pi \
   :led_driver \
-  :projectm_sdl_test \
-  -c opt
+  :projectm_sdl_test #\
+  #-c opt
 
 # Generate the LED mapping proto.
 bazelisk run --distinct_host_configuration :mapping_generator -- --export_only \
