@@ -86,6 +86,8 @@ ABSL_FLAG(int, flicker_threshold, 200,
           "Threshold against which to trigger flickering");
 ABSL_FLAG(float, flicker_ratio, 0.8f,
           "Ratio of pixels that need to be above flicker_threshold");
+ABSL_FLAG(bool, blank_display, false,
+          "If set, clears the display and immediately exits");
 
 namespace led_driver {
 
@@ -202,6 +204,15 @@ int main(int argc, char *argv[]) {
 
   auto spi_driver = SpiDriver::Create(kDevice, kClockPolarity, kClockPhase,
                                       kBitsPerWord, kSpeedHz, kDelayUs);
+
+  if (absl::GetFlag(FLAGS_blank_display)) {
+    std::cout << "Clearing display" << std::endl;
+    std::vector<uint8_t> empty_raster(3 * 600 + 2, 0);
+    empty_raster[0] = 0x80;
+    empty_raster[1] = 0x00;
+    spi_driver->Transfer(empty_raster);
+    return 0;
+  }
 
   if (spi_driver == nullptr) {
     std::cerr << "Failed to create SPI driver" << std::endl;
