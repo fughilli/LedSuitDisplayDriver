@@ -26,17 +26,26 @@ set -o pipefail
 bazelisk build --distinct_host_configuration --config=pi \
   :led_driver \
   :projectm_sdl_test #\
-  #-c opt
+#-c opt
 
 # Generate the LED mapping proto.
 bazelisk run --distinct_host_configuration :mapping_generator -- --export_only \
   --generate_file=$PWD/generate.py --export_file=$PWD/mapping.binaryproto
 
+rm -f /tmp/led_driver /tmp/projectm_sdl_test
+
 # Set permissions.
-cp ../bazel-out/armeabihf-opt/bin/led_driver/led_driver \
-  /tmp/led_driver
-cp ../bazel-out/armeabihf-opt/bin/led_driver/projectm_sdl_test \
-  /tmp/projectm_sdl_test
+if [[ -f ../bazel-out/armeabihf-opt/bin/led_driver/led_driver ]]; then
+  cp ../bazel-out/armeabihf-opt/bin/led_driver/led_driver \
+    /tmp/led_driver
+  cp ../bazel-out/armeabihf-opt/bin/led_driver/projectm_sdl_test \
+    /tmp/projectm_sdl_test
+elif [[ -f ../bazel-out/armeabihf-fastbuild/bin/led_driver/led_driver ]]; then
+  cp ../bazel-out/armeabihf-fastbuild/bin/led_driver/led_driver \
+    /tmp/led_driver
+  cp ../bazel-out/armeabihf-fastbuild/bin/led_driver/projectm_sdl_test \
+    /tmp/projectm_sdl_test
+fi
 
 chmod +rw /tmp/led_driver
 chmod +rw /tmp/projectm_sdl_test
@@ -48,4 +57,4 @@ rsync --update --checksum -va \
   mapping.binaryproto \
   remote_scripts/* \
   remote_config/* \
-pi@ledsuit:~
+  pi@ledsuit:~
