@@ -139,7 +139,7 @@ done
 
 # Fix crontab
 {
-  if [[ -z $(crontab -l |
+  if [[ -z $(sudo crontab -l |
     grep '@reboot \/home\/pi\/root_boot_hook\.sh') ]]; then
     echo -n "Configuring crontab... "
     (
