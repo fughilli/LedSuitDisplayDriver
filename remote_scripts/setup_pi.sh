@@ -137,6 +137,20 @@ done
   fi
 }
 
+# Fix crontab
+{
+  if [[ -z $(crontab -l |
+    grep '@reboot \/home\/pi\/root_boot_hook\.sh') ]]; then
+    echo -n "Configuring crontab... "
+    (
+      sudo crontab -l
+      echo '@reboot /home/pi/root_boot_hook.sh'
+    ) | sudo crontab -
+    echo "Done."
+    done_something=1
+  fi
+}
+
 if [[ $done_something == 1 ]]; then
   echo "Rebooting for changes to take effect..."
   sudo reboot
