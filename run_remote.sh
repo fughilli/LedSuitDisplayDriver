@@ -19,5 +19,22 @@
 # along with LED Suit Driver.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-./deploy_to_pi.sh
+hostname=ledsuit
+
+while [[ ! -z "$@" ]]; do
+  arg=$1
+  shift
+
+  case $arg in
+    '-t')
+      hostname=$1
+      shift
+      ;;
+
+    *)
+      ;;
+  esac
+done
+
+./deploy_to_pi.sh -t "${hostname}"
 ssh pi@ledsuit -t "~/run_projectm.sh $@"

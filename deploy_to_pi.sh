@@ -22,6 +22,23 @@
 set -o errexit
 set -o pipefail
 
+hostname=ledsuit
+
+while [[ ! -z "$@" ]]; do
+  arg=$1
+  shift
+
+  case $arg in
+    '-t')
+      hostname=$1
+      shift
+      ;;
+
+    *)
+      ;;
+  esac
+done
+
 # Build the LED driver and projectM.
 bazelisk build --distinct_host_configuration --config=pi \
   :led_driver \
@@ -57,4 +74,4 @@ rsync --update --checksum -va \
   mapping.binaryproto \
   remote_scripts/* \
   remote_config/* \
-  pi@ledsuit:~
+  "pi@${hostname}:~"
