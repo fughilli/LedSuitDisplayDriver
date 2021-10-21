@@ -36,8 +36,8 @@ class PulseAudioInterface {
  public:
   using SampleCallbackType = std::function<void(absl::Span<const float>)>;
   PulseAudioInterface(std::string server_name, std::string device_name,
-                      std::string stream_name, int channel_count,
-                      SampleCallbackType sample_callback)
+                      std::string stream_name, int sampling_rate,
+                      int channel_count, SampleCallbackType sample_callback)
       : server_name_(std::move(server_name)),
         device_name_(std::move(device_name)),
         stream_name_(std::move(stream_name)),
@@ -45,7 +45,7 @@ class PulseAudioInterface {
         sample_callback_(std::move(sample_callback)) {
     memset(&sample_spec_, 0, sizeof(sample_spec_));
     sample_spec_.format = PA_SAMPLE_FLOAT32LE;
-    sample_spec_.rate = 44100;
+    sample_spec_.rate = sampling_rate;
     sample_spec_.channels = channel_count_;
     succeeded_.store(false);
     marked_.store(false);
