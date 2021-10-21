@@ -28,7 +28,9 @@ from absl import flags
 
 flags.DEFINE_string("generate_file", None,
                     "Script to run to generate the LED mapping")
+flags.mark_flag_as_required("generate_file")
 flags.DEFINE_string("export_file", None, "File to export the mapping to")
+flags.mark_flag_as_required("export_file")
 flags.DEFINE_bool("export_only", False,
                   "Only export the mapping, and then exit")
 
