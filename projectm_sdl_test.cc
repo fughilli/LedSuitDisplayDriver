@@ -201,6 +201,7 @@ extern "C" int main(int argc, char *argv[]) {
     auto pa_interface = std::make_shared<PulseAudioInterface>(
         absl::GetFlag(FLAGS_pulseaudio_server),
         absl::GetFlag(FLAGS_pulseaudio_source), "input_stream",
+        44100,
         callback_data->channel_count,
         [&callback_data](absl::Span<const float> samples) {
           std::lock_guard<std::mutex> audio_queue_lock(audio_queue_mutex);
