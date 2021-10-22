@@ -37,4 +37,4 @@ while [[ ! -z "$@" ]]; do
 done
 
 ./deploy_to_pi.sh -t "${hostname}"
-ssh pi@ledsuit -t "~/run_projectm.sh $@"
+ssh "pi@${hostname}" -t "~/run_projectm.sh $@"
