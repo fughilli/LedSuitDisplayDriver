@@ -88,6 +88,8 @@ ABSL_FLAG(float, flicker_ratio, 0.8f,
           "Ratio of pixels that need to be above flicker_threshold");
 ABSL_FLAG(bool, blank_display, false,
           "If set, clears the display and immediately exits");
+ABSL_FLAG(int, clamp_threshold, 3,
+          "Pixel values with norm below this threshold will be clamped to 0.");
 
 namespace led_driver {
 
@@ -111,12 +113,13 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
   SpiImageBufferReceiver(std::shared_ptr<SpiDriver> spi_driver,
                          std::vector<Coordinate> coordinates,
                          LedIntensity intensity, int flicker_threshold,
-                         float flicker_ratio)
+                         float flicker_ratio, int clamp_threshold)
       : spi_driver_(std::move(spi_driver)),
         coordinates_(std::move(coordinates)),
         intensity_(intensity),
         flicker_threshold_(flicker_threshold),
-        flicker_ratio_(flicker_ratio) {}
+        flicker_ratio_(flicker_ratio),
+        clamp_threshold_(clamp_threshold) {}
   void Receive(std::shared_ptr<ImageBuffer> image_buffer) override {
     std::vector<uint8_t> output_buffer_;
     output_buffer_.resize(kLedBufferLength + 2, 0);
@@ -131,11 +134,20 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
       ssize_t pixel_index = coordinate.first * kLedChannels +
                             coordinate.second * image_buffer->row_stride;
 
-      // Copy pixel from the sampling location to the end of the
-      // output buffer
-      std::copy(image_buffer->buffer.begin() + pixel_index,
-                image_buffer->buffer.begin() + pixel_index + kLedChannels,
-                end_iter);
+      absl::Span<uint8_t> pixel{image_buffer->buffer.data() + pixel_index,
+                                kLedChannels};
+      bool draw = false;
+      for (auto value : pixel) {
+        if (value >= clamp_threshold_) draw = true;
+      }
+
+      if (draw) {
+        // Copy pixel from the sampling location to the end of the
+        // output buffer
+        std::copy(image_buffer->buffer.begin() + pixel_index,
+                  image_buffer->buffer.begin() + pixel_index + kLedChannels,
+                  end_iter);
+      }
 
       end_iter += 3;
     }
@@ -179,6 +191,7 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
   int flicker_threshold_;
   float flicker_ratio_;
   int flicker_counter_;
+  int clamp_threshold_;
 };
 
 int main(int argc, char *argv[]) {
@@ -222,7 +235,8 @@ int main(int argc, char *argv[]) {
   auto image_buffer_receiver = std::make_shared<SpiImageBufferReceiver>(
       spi_driver, coordinates, absl::GetFlag(FLAGS_intensity),
       absl::GetFlag(FLAGS_flicker_threshold),
-      absl::GetFlag(FLAGS_flicker_ratio));
+      absl::GetFlag(FLAGS_flicker_ratio),
+      absl::GetFlag(FLAGS_clamp_threshold));
 
   if (image_buffer_receiver == nullptr) {
     std::cerr << "Failed to create image buffer receiver" << std::endl;

@@ -180,6 +180,7 @@ if [[ $RUN_SPI_DRIVER != 0 ]]; then
   /home/pi/led_driver --intensity=0.2 \
     --enable_projectm_controller=false \
     --mapping_file=/home/pi/mapping.binaryproto \
+    --clamp_threshold=4 \
     --raster_x=0 \
     --raster_y=0 \
     --raster_width=$RASTER_WIDTH \
