@@ -136,6 +136,8 @@ xinit_command="./user_projectm.sh \
 sudo -E xinit $xinit_command -- :0 &
 XINIT_PID=$!
 
+sleep 5
+
 if [[ $RUN_PROJECTM != 0 ]]; then
   # Wait for projectM to spool up so we can capture its window ID. This is done
   # for two reasons: the LED driver needs to capture the projectM window, so we
@@ -177,6 +179,8 @@ if [[ $RUN_PROJECTM != 0 ]]; then
 fi
 
 if [[ $RUN_SPI_DRIVER != 0 ]]; then
+  sleep 5
+
   /home/pi/led_driver --intensity=0.2 \
     --enable_projectm_controller=false \
     --mapping_file=/home/pi/mapping.binaryproto \
