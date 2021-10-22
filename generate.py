@@ -56,18 +56,30 @@ def GenerateCenteredLine(center, pitch, width):
 
 
 def GenerateCenteredStack(bottom_center, pitch, widths):
-    return itertools.chain(*(GenerateCenteredLine(
-        bottom_center - n * pitch * numpy.array((0, 1)), pitch, widths[n])
-                             for n in range(len(widths))))
+    return itertools.chain(*(
+        GenerateCenteredLine(bottom_center -
+                             n * pitch * numpy.array((0, 1)), pitch, widths[n])
+        for n in range(len(widths))))
+
+
+left_eye_center = numpy.array((200, 600))
+right_eye_center = numpy.array((475, 600))
 
 
 def GenerateSampling():
     return itertools.chain(
         # Eyes on glasses
-        GenerateEye(numpy.array((200, 600)), False, 1.5, 0),
-        GenerateEye(numpy.array((475, 600)), True, 2.5, 2),
+        GenerateEye(left_eye_center, False, 1.5, 0),
+        GenerateEye(right_eye_center, True, 2.5, 2),
         # Throwaway indices to get to next driver port starting at index 300
         GeneratePadding(numpy.array((337.5, 450)), 300 - 72),
         # Squid hat
         GenerateCenteredStack(numpy.array((337.5, 400)), 40,
                               [15, -14, 13, -12, 10, -9, 7, -5, 4]))
+
+
+def GeneratePointsOfInterest():
+    return [
+        left_eye_center,
+        right_eye_center,
+    ]

@@ -33,6 +33,8 @@ flags.DEFINE_string("export_file", None, "File to export the mapping to")
 flags.mark_flag_as_required("export_file")
 flags.DEFINE_bool("export_only", False,
                   "Only export the mapping, and then exit")
+flags.DEFINE_integer("border_size", 20,
+                     "Pixels to add around the sampling array")
 
 FLAGS = flags.FLAGS
 
@@ -48,23 +50,24 @@ class GenerateModifiedHandler(watchdog.events.FileSystemEventHandler):
 
     def on_modified(self, event):
         print(event)
-        if (event.event_type == "modified" and
-            self.filename == event.src_path and
-                event.is_directory == False):
+        if (event.event_type == "modified" and self.filename == event.src_path
+                and event.is_directory == False):
             self.handler()
 
 
 class MappingGenerator(object):
-    def __init__(self, screen, generate_file, export_file):
+    def __init__(self, screen, border_size, generate_file, export_file):
         self.generate_file = generate_file
         self.export_file = export_file
+        self.border_size = border_size
         self.ReloadHandler()
         self.modified_handler = GenerateModifiedHandler(
             self.generate_file, self.ReloadHandler)
 
         self.observer = watchdog.observers.Observer()
         self.observer.schedule(self.modified_handler,
-                               os.path.dirname(self.generate_file), recursive=True)
+                               os.path.dirname(self.generate_file),
+                               recursive=True)
         self.observer.start()
 
         font_size = 20
@@ -79,15 +82,17 @@ class MappingGenerator(object):
         self.observer.join()
 
     def Tick(self):
+        self.screen.fill((0, ) * 3)
         self.DrawSamples(self.generate_module.GenerateSampling())
+        self.DrawPointsOfInterest(
+            self.generate_module.GeneratePointsOfInterest())
 
     def ReloadHandler(self):
         self.generate_module = self.ReloadGenerateScript()
         self.ExportMapping()
 
     def ReloadGenerateScript(self):
-        print("Reloading script from {}".format(
-            self.generate_file))
+        print("Reloading script from {}".format(self.generate_file))
         generate_spec = importlib.util.spec_from_file_location(
             "generate", self.generate_file)
         generate_module = importlib.util.module_from_spec(generate_spec)
@@ -97,18 +102,33 @@ class MappingGenerator(object):
     def DrawSample(self, index, coordinate):
         x, y = coordinate.astype(numpy.int32)
 
-        pygame.draw.circle(self.screen, (255,)*3, (x, y), 16, 1)
-        text_raster = self.font.render(str(index), True, (255,)*3)
+        pygame.draw.circle(self.screen, (255, ) * 3, (x, y), 16, 1)
+        text_raster = self.font.render(str(index), True, (255, ) * 3)
 
-        self.screen.blit(text_raster, (numpy.array((x, y)) -
-                                       (numpy.array(text_raster.get_size())/2)
-                                       ).astype(numpy.int32))
+        self.screen.blit(text_raster, (numpy.array(
+            (x, y)) - (numpy.array(text_raster.get_size()) / 2)).astype(
+                numpy.int32))
+
+    def DrawPointOfInterest(self, index, coordinate):
+        x, y = coordinate.astype(numpy.int32)
+
+        pygame.draw.circle(self.screen, (255, 0, 0), (x, y), 16, 1)
+        text_raster = self.font.render("I{:d}".format(index), True,
+                                       (255, ) * 3)
+
+        self.screen.blit(text_raster, (numpy.array(
+            (x, y)) - (numpy.array(text_raster.get_size()) / 2)).astype(
+                numpy.int32))
+
+    def ComputeBounds(self, samples):
+        border_coord = numpy.array((self.border_size, self.border_size))
+        min_sample = numpy.amin(samples, axis=0) - border_coord
+        max_sample = numpy.amax(samples, axis=0) + border_coord
+        return min_sample, max_sample
 
     def DrawSamples(self, samples):
-        self.screen.fill((0, ) * 3)
         samples_flattened = numpy.array(list(samples))
-        min_sample = numpy.amin(samples_flattened, axis=0)
-        max_sample = numpy.amax(samples_flattened, axis=0)
+        min_sample, max_sample = self.ComputeBounds(samples_flattened)
         range_sample = max_sample - min_sample
         pygame.draw.rect(
             self.screen, (255, 255, 255),
@@ -117,10 +137,13 @@ class MappingGenerator(object):
         for i, sample in enumerate(samples_flattened):
             self.DrawSample(i, sample)
 
+    def DrawPointsOfInterest(self, samples):
+        for i, sample in enumerate(samples):
+            self.DrawPointOfInterest(i, sample)
+
     def ExportMapping(self):
         samples = numpy.array(list(self.generate_module.GenerateSampling()))
-        min_sample = numpy.amin(samples, axis=0)
-        max_sample = numpy.amax(samples, axis=0)
+        min_sample, max_sample = self.ComputeBounds(samples)
         range_sample = max_sample - min_sample
 
         normalized_samples = numpy.divide(samples - min_sample, range_sample)
@@ -133,6 +156,17 @@ class MappingGenerator(object):
         with open(self.export_file, 'wb') as export_file:
             export_file.write(mapping.SerializeToString())
 
+        points_of_interest = numpy.array(
+            list(self.generate_module.GeneratePointsOfInterest()))
+        normalized_points_of_interest = numpy.divide(
+            points_of_interest - min_sample, range_sample)
+
+        for i, point_of_interest in enumerate(normalized_points_of_interest):
+            screen_coord = (point_of_interest - numpy.array((0.5, 0.5))) * 2
+            screen_coord = screen_coord * numpy.array((1, -1))
+            print("%Point of interest {:4d}: {:s}".format(
+                i, str(screen_coord)))
+
 
 def main(argv):
     if not FLAGS.export_only:
@@ -142,8 +176,9 @@ def main(argv):
     else:
         screen = None
 
-    mapping_generator = MappingGenerator(
-        screen, FLAGS.generate_file, FLAGS.export_file)
+    mapping_generator = MappingGenerator(screen, FLAGS.border_size,
+                                         FLAGS.generate_file,
+                                         FLAGS.export_file)
 
     if FLAGS.export_only:
         print("Exported mapping file, exiting")
