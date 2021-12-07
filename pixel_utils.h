@@ -21,9 +21,53 @@
 #ifndef PIXEL_UTILS_H_
 #define PIXEL_UTILS_H_
 
+#include <cmath>
 #include <cstdint>
 
 namespace led_driver {
+
+class ColorCorrector {
+ public:
+  static constexpr int kNumChannels = 3;
+
+  struct Options {
+    float gamma[kNumChannels]{};
+    float peak_brightness[kNumChannels]{};
+  };
+
+  ColorCorrector(Options options) : options_(options) {
+    float min_brightness = *std::min_element(
+        options_.peak_brightness, options_.peak_brightness + kNumChannels);
+
+    for (int i = 0; i < kNumChannels; ++i) {
+      std::array<uint8_t, 256> &table = color_table_[i];
+
+      options_.peak_brightness[i] =
+          min_brightness / options_.peak_brightness[i];
+      for (int j = 0; j < 256; ++j) {
+        table[j] = static_cast<uint8_t>(
+            std::ceil(std::pow(j / 255.0f, options_.gamma[i]) * 255.0f *
+                      options.peak_brightness[i]));
+      }
+    }
+  }
+
+  void CorrectInPlace(uint8_t *pixel) const {
+    if (pixel == nullptr) return;
+
+    for (int i = 0; i < kNumChannels; ++i) pixel[i] = color_table_[i][pixel[i]];
+  }
+
+  void CorrectPixelsInPlace(uint8_t *pixel_buffer, int num_pixels) const {
+    for (int i = 0; i < num_pixels; ++i) {
+      CorrectInPlace(pixel_buffer + i * kNumChannels);
+    }
+  }
+
+ private:
+  Options options_{};
+  std::array<std::array<uint8_t, 256>, kNumChannels> color_table_{};
+};
 
 void TransposeRedGreenPixel(uint8_t *pixel) {
   uint8_t temp = *pixel;

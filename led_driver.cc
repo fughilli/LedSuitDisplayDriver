@@ -155,8 +155,9 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
     FullWhiteCompensate(
         absl::Span<uint8_t>(&output_buffer_[2], output_buffer_.size() - 2));
 
-    TransposeRedGreen(&(output_buffer_[2]), kNumLeds);
     ScalePixelValues(&(output_buffer_[2]), intensity_.intensity, kNumLeds);
+    corrector_.CorrectPixelsInPlace(&(output_buffer_[2]), kNumLeds);
+    TransposeRedGreen(&(output_buffer_[2]), kNumLeds);
     spi_driver_->Transfer(output_buffer_);
   }
 
@@ -192,6 +193,11 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
   float flicker_ratio_;
   int flicker_counter_;
   int clamp_threshold_;
+
+  const ColorCorrector corrector_{
+      {.gamma = {2.8f, 2.8f, 2.8f},
+       .peak_brightness = {(390.0f + 420.0f) / 2, (660.0f + 720.0f) / 2,
+                           (180.0f + 200.0f) / 2}}};
 };
 
 int main(int argc, char *argv[]) {
