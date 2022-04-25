@@ -1,6 +1,6 @@
 //
-// LED Suit Driver - Embedded host driver software for Kevin's LED suit controller.
-// Copyright (C) 2019-2020 Kevin Balke
+// LED Suit Driver - Embedded host driver software for Kevin's LED suit
+// controller. Copyright (C) 2019-2020 Kevin Balke
 //
 // This file is part of LED Suit Driver.
 //
@@ -98,6 +98,6 @@ void ScalePixelValues(uint8_t *pixels, float scale, ssize_t num_pixels) {
   }
 }
 
-} // namespace led_driver
+}  // namespace led_driver
 
 #endif

@@ -34,8 +34,8 @@ set -o pipefail
 # Size of the visualizations. Larger values increase the computational cost of
 # rendering the visualizations. Since the output is aggressively downsampled for
 # display on the LED array, ~100x100 should be sufficient.
-RASTER_WIDTH=100
-RASTER_HEIGHT=100
+RASTER_WIDTH=50
+RASTER_HEIGHT=50
 # Whether or not to run the LED driver module.
 RUN_SPI_DRIVER=1
 # Whether or not we are running projectM as the visualizer. In this case, some
@@ -181,10 +181,9 @@ fi
 if [[ $RUN_SPI_DRIVER != 0 ]]; then
   sleep 5
 
-  /home/pi/led_driver --intensity=0.2 \
+  /home/pi/led_driver --intensity=1 \
     --enable_projectm_controller=false \
     --mapping_file=/home/pi/mapping.binaryproto \
-    --clamp_threshold=4 \
     --raster_x=0 \
     --raster_y=0 \
     --raster_width=$RASTER_WIDTH \

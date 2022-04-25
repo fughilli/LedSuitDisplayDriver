@@ -88,7 +88,9 @@ ABSL_FLAG(float, flicker_ratio, 0.8f,
           "Ratio of pixels that need to be above flicker_threshold");
 ABSL_FLAG(bool, blank_display, false,
           "If set, clears the display and immediately exits");
-ABSL_FLAG(int, clamp_threshold, 3,
+ABSL_FLAG(int, indicate_progress, 0,
+          "If set, configures the first N leds to Red.");
+ABSL_FLAG(int, clamp_threshold, 0,
           "Pixel values with norm below this threshold will be clamped to 0.");
 
 namespace led_driver {
@@ -182,7 +184,7 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
     }
   }
 
-  constexpr static ssize_t kNumLeds = 600;
+  constexpr static ssize_t kNumLeds = 900;
   constexpr static ssize_t kLedChannels = 3;
   constexpr static ssize_t kLedBufferLength = kNumLeds * kLedChannels;
   constexpr static uint32_t kFlickerModulus = 0x3;
@@ -226,7 +228,22 @@ int main(int argc, char *argv[]) {
 
   if (absl::GetFlag(FLAGS_blank_display)) {
     std::cout << "Clearing display" << std::endl;
-    std::vector<uint8_t> empty_raster(3 * 600 + 2, 0);
+    std::vector<uint8_t> empty_raster(3 * 900 + 2, 0);
+    empty_raster[0] = 0x80;
+    empty_raster[1] = 0x00;
+    spi_driver->Transfer(empty_raster);
+    return 0;
+  }
+
+  int indicate_progress = absl::GetFlag(FLAGS_indicate_progress);
+  if (indicate_progress > 0) {
+    std::cout << "Indicating progress" << std::endl;
+    std::vector<uint8_t> empty_raster(3 * 900 + 2, 0);
+    int index = 0;
+    while (indicate_progress--) {
+      empty_raster[2 + index * 3] = 100;
+      ++index;
+    }
     empty_raster[0] = 0x80;
     empty_raster[1] = 0x00;
     spi_driver->Transfer(empty_raster);
@@ -241,8 +258,7 @@ int main(int argc, char *argv[]) {
   auto image_buffer_receiver = std::make_shared<SpiImageBufferReceiver>(
       spi_driver, coordinates, absl::GetFlag(FLAGS_intensity),
       absl::GetFlag(FLAGS_flicker_threshold),
-      absl::GetFlag(FLAGS_flicker_ratio),
-      absl::GetFlag(FLAGS_clamp_threshold));
+      absl::GetFlag(FLAGS_flicker_ratio), absl::GetFlag(FLAGS_clamp_threshold));
 
   if (image_buffer_receiver == nullptr) {
     std::cerr << "Failed to create image buffer receiver" << std::endl;

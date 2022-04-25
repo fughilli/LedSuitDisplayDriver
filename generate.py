@@ -66,7 +66,16 @@ left_eye_center = numpy.array((200, 600))
 right_eye_center = numpy.array((475, 600))
 
 
+def GenerateLine(start_x, end_x, y, count):
+    for i in numpy.linspace(start_x, end_x, count):
+        yield numpy.array((i, y))
+
+
 def GenerateSampling():
+    squid_hat_size = len(
+        list(
+            GenerateCenteredStack(numpy.array((337.5, 400)), 40,
+                                  [15, -14, 13, -12, 10, -9, 7, -5, 4])))
     return itertools.chain(
         # Eyes on glasses
         GenerateEye(left_eye_center, False, 1.5, 0),
@@ -75,7 +84,11 @@ def GenerateSampling():
         GeneratePadding(numpy.array((337.5, 450)), 300 - 72),
         # Squid hat
         GenerateCenteredStack(numpy.array((337.5, 400)), 40,
-                              [15, -14, 13, -12, 10, -9, 7, -5, 4]))
+                              [15, -14, 13, -12, 10, -9, 7, -5, 4]),
+        # Throwaway to get to next port at index 600
+        GeneratePadding(numpy.array((337.5, 450)), 300 - squid_hat_size),
+        GenerateLine(100, 575, 400, 105)
+    )
 
 
 def GeneratePointsOfInterest():
