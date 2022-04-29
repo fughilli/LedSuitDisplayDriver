@@ -158,14 +158,16 @@ class MappingGenerator(object):
 
         points_of_interest = numpy.array(
             list(self.generate_module.GeneratePointsOfInterest()))
-        normalized_points_of_interest = numpy.divide(
-            points_of_interest - min_sample, range_sample)
 
-        for i, point_of_interest in enumerate(normalized_points_of_interest):
-            screen_coord = (point_of_interest - numpy.array((0.5, 0.5))) * 2
-            screen_coord = screen_coord * numpy.array((1, -1))
-            print("%Point of interest {:4d}: {:s}".format(
-                i, str(screen_coord)))
+        if points_of_interest.size > 0:
+          normalized_points_of_interest = numpy.divide(
+              points_of_interest - min_sample, range_sample)
+
+          for i, point_of_interest in enumerate(normalized_points_of_interest):
+              screen_coord = (point_of_interest - numpy.array((0.5, 0.5))) * 2
+              screen_coord = screen_coord * numpy.array((1, -1))
+              print("%Point of interest {:4d}: {:s}".format(
+                  i, str(screen_coord)))
 
 
 def main(argv):
