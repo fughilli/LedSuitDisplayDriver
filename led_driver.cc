@@ -19,15 +19,18 @@
 //
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <utility>
 #include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/strings/str_format.h"
 #include "absl/types/span.h"
 #include "led_driver/led_mapping.pb.h"
 #include "pixel_utils.h"
@@ -92,6 +95,13 @@ ABSL_FLAG(int, indicate_progress, 0,
           "If set, configures the first N leds to Red.");
 ABSL_FLAG(int, clamp_threshold, 0,
           "Pixel values with norm below this threshold will be clamped to 0.");
+
+ABSL_FLAG(bool, override, false, "Override LED colors.");
+ABSL_FLAG(int, override_color, 0x770000, "Color to override all LEDs with");
+ABSL_FLAG(int, override_num_leds, 10, "Number of LEDs to override");
+ABSL_FLAG(int, override_offset, 0, "Offset into the array to override");
+ABSL_FLAG(bool, override_march, false,
+          "Whether to do a marching-ants animation on the overridden LEDs");
 
 namespace led_driver {
 
@@ -232,6 +242,69 @@ int main(int argc, char *argv[]) {
     empty_raster[0] = 0x80;
     empty_raster[1] = 0x00;
     spi_driver->Transfer(empty_raster);
+    return 0;
+  }
+
+  if (absl::GetFlag(FLAGS_override)) {
+    const uint32_t override_color = absl::GetFlag(FLAGS_override_color);
+    const uint32_t override_num_channels =
+        3 * absl::GetFlag(FLAGS_override_num_leds);
+    std::cout << absl::StrFormat("Overriding display with color 0x%06X",
+                                 override_color)
+              << std::endl;
+
+    std::vector<uint8_t> color_raster(override_num_channels + 2, 0);
+    color_raster[0] = 0x80;
+    color_raster[1] = 0x00;
+
+    const uint16_t command =
+        0x8000 + std::clamp(absl::GetFlag(FLAGS_override_offset), 0, 32767);
+    color_raster[0] = (command >> 8) & 0xFF;
+    color_raster[1] = command & 0xFF;
+
+    for (int i = 0; i < override_num_channels; ++i) {
+      const int channel = i % 3;
+
+      switch (channel) {
+        case 0:
+          color_raster[2 + i] = (override_color >> 16) & 0xFF;
+          break;
+        case 1:
+          color_raster[2 + i] = override_color & 0xFF;
+          break;
+        case 2:
+          color_raster[2 + i] = (override_color >> 8) & 0xFF;
+          break;
+      }
+    }
+    if (absl::GetFlag(FLAGS_override_march)) {
+      std::vector<uint8_t> marching_raster(color_raster.size(), 0);
+
+      constexpr int kIntervalLength = 5;
+      constexpr int kAntLength = 1;
+
+      int offset = 0;
+
+      do {
+        std::copy(color_raster.begin(), color_raster.end(),
+                  marching_raster.begin());
+
+        for (int i = 0; i < override_num_channels / 3; ++i) {
+          int position = (i + offset) % kIntervalLength;
+          if (position >= kAntLength) {
+            memset(marching_raster.data() + 2 + (i * 3), 0, 3);
+          }
+        }
+
+        spi_driver->Transfer(marching_raster);
+        offset = (offset + 1) % kIntervalLength;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      } while (true);
+
+    } else {
+      spi_driver->Transfer(color_raster);
+    }
     return 0;
   }
 
