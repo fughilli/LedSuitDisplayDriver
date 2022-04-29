@@ -72,27 +72,29 @@ def GenerateLine(start_x, end_x, y, count):
 
 
 def GenerateSampling():
-    squid_hat_size = len(
-        list(
-            GenerateCenteredStack(numpy.array((337.5, 400)), 40,
-                                  [15, -14, 13, -12, 10, -9, 7, -5, 4])))
-    return itertools.chain(
-        # Eyes on glasses
-        GenerateEye(left_eye_center, False, 1.5, 0),
-        GenerateEye(right_eye_center, True, 2.5, 2),
-        # Throwaway indices to get to next driver port starting at index 300
-        GeneratePadding(numpy.array((337.5, 450)), 300 - 72),
-        # Squid hat
-        GenerateCenteredStack(numpy.array((337.5, 400)), 40,
-                              [15, -14, 13, -12, 10, -9, 7, -5, 4]),
-        # Throwaway to get to next port at index 600
-        GeneratePadding(numpy.array((337.5, 450)), 300 - squid_hat_size),
-        GenerateLine(100, 575, 400, 105)
-    )
+    # squid_hat_size = len(
+    #     list(
+    #         GenerateCenteredStack(numpy.array((337.5, 400)), 40,
+    #                               [15, -14, 13, -12, 10, -9, 7, -5, 4])))
+    # return itertools.chain(
+    #     # Eyes on glasses
+    #     GenerateEye(left_eye_center, False, 1.5, 0),
+    #     GenerateEye(right_eye_center, True, 2.5, 2),
+    #     # Throwaway indices to get to next driver port starting at index 300
+    #     GeneratePadding(numpy.array((337.5, 450)), 300 - 72),
+    #     # Squid hat
+    #     GenerateCenteredStack(numpy.array((337.5, 400)), 40,
+    #                           [15, -14, 13, -12, 10, -9, 7, -5, 4]),
+    #     # Throwaway to get to next port at index 600
+    #     GeneratePadding(numpy.array((337.5, 450)), 300 - squid_hat_size),
+    #     GenerateLine(100, 575, 400, 105)
+    # )
+    return GenerateCenteredStack(numpy.array((500,850)), 40, [15] * 20)
 
 
 def GeneratePointsOfInterest():
-    return [
-        left_eye_center,
-        right_eye_center,
-    ]
+    return []
+    # return [
+    #     left_eye_center,
+    #     right_eye_center,
+    # ]
