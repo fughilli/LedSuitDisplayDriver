@@ -40,6 +40,9 @@ flags.DEFINE_bool("export_only", False,
                   "Only export the mapping, and then exit")
 flags.DEFINE_integer("border_size", 20,
                      "Pixels to add around the sampling array")
+flags.DEFINE_bool(
+    "preserve_aspect_ratio", False,
+    "Whether or not to preserve the aspect ratio of the LED array")
 
 FLAGS = flags.FLAGS
 
@@ -119,7 +122,7 @@ class Sample:
 
 class MappingGenerator(object):
     def __init__(self, screen, border_size, generate_file, export_file,
-                 state_file):
+                 state_file, preserve_aspect_ratio):
         self.generate_file = generate_file
         self.export_file = export_file
         self.border_size = border_size
@@ -148,6 +151,8 @@ class MappingGenerator(object):
         self.index_string = ""
 
         self.state_file = state_file
+
+        self.preserve_aspect_ratio = preserve_aspect_ratio
 
         font_size = 20
 
@@ -385,7 +390,14 @@ class MappingGenerator(object):
         min_sample, max_sample = self.ComputeBounds(samples)
         range_sample = max_sample - min_sample
 
-        normalized_samples = numpy.divide(samples - min_sample, range_sample)
+        center_sample = min_sample + range_sample / 2
+
+        if self.preserve_aspect_ratio:
+            range_sample = numpy.amax(range_sample, axis=0) * numpy.array(
+                (1, 1))
+
+        normalized_samples = numpy.divide(
+            samples - center_sample, range_sample) + numpy.array((0.5, 0.5))
 
         ordered_coordinates = [numpy.array(
             (0, 0))] * (max([sample.display_index
@@ -431,14 +443,15 @@ class MappingGenerator(object):
 def main(argv):
     if not FLAGS.export_only:
         pygame.init()
-        screen = pygame.display.set_mode((2560, 1440))
+        screen = pygame.display.set_mode((1800, 1000))
         clock = pygame.time.Clock()
     else:
         screen = None
 
     mapping_generator = MappingGenerator(screen, FLAGS.border_size,
                                          FLAGS.generate_file,
-                                         FLAGS.export_file, FLAGS.state_file)
+                                         FLAGS.export_file, FLAGS.state_file,
+                                         FLAGS.preserve_aspect_ratio)
 
     if FLAGS.export_only:
         print("Exported mapping file, exiting")
