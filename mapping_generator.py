@@ -43,6 +43,10 @@ flags.DEFINE_integer("border_size", 20,
 flags.DEFINE_bool(
     "preserve_aspect_ratio", False,
     "Whether or not to preserve the aspect ratio of the LED array")
+flags.DEFINE_bool(
+    "init_order", True,
+    "Whether to initalize the ordering explicitly from the output of the "
+    "generate file")
 
 FLAGS = flags.FLAGS
 
@@ -174,7 +178,15 @@ class MappingGenerator(object):
             self.raw_samples = new_raw_samples
             self.samples = []
             for raw_sample in self.raw_samples:
-                self.samples.append(Sample(coordinate=numpy.array(raw_sample)))
+                new_sample = Sample(coordinate=numpy.array(raw_sample))
+                if FLAGS.init_order:
+                    if len(self.samples) > 0:
+                        new_sample.predecessor = self.samples[-1]
+                        self.samples[-1].successor = new_sample
+                    else:
+                        new_sample.index = 0
+                self.samples.append(new_sample)
+
 
     def Tick(self):
         self.screen.fill((0, ) * 3)
