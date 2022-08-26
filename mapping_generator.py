@@ -30,6 +30,10 @@ import pygame
 import watchdog.events
 import watchdog.observers
 
+import sys
+
+sys.setrecursionlimit(10000)
+
 flags.DEFINE_string("generate_file", None,
                     "Script to run to generate the LED mapping")
 flags.DEFINE_string("state_file", None, "Where to cache the editor state")
@@ -174,7 +178,7 @@ class MappingGenerator(object):
             return
 
         new_raw_samples = list(self.generate_module.GenerateSampling())
-        if (self.raw_samples != new_raw_samples):
+        if not numpy.array_equal(self.raw_samples, new_raw_samples):
             self.raw_samples = new_raw_samples
             self.samples = []
             for raw_sample in self.raw_samples:
@@ -236,6 +240,7 @@ class MappingGenerator(object):
         if self.partial_sample is not None:
             if self.partial_sample is sample:
                 sample.predecessor = None
+                self.index_string = ""
                 self.choosing_index = True
                 return
             if ContainsByReference(sample,
@@ -372,6 +377,7 @@ class MappingGenerator(object):
     def DrawSamples(self):
         samples_flattened = numpy.array(list(self.raw_samples))
         min_sample, max_sample = self.ComputeBounds(samples_flattened)
+        print(f"min: {min_sample}, max: {max_sample}")
         range_sample = max_sample - min_sample
         pygame.draw.rect(
             self.screen, (255, 255, 255),

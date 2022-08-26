@@ -21,15 +21,90 @@ import math
 import itertools
 
 
-def GenerateSampling():
-    coords = []
+def CirclePoints(center, r, start_offset_points, num_points):
+    circle_radians = numpy.pi * 2
+    delta_theta = circle_radians / num_points
+    start_theta = delta_theta * start_offset_points
+    for theta in numpy.arange(0, circle_radians, delta_theta):
+        yield (center + (r * numpy.array(
+            (math.cos(theta + start_theta), math.sin(theta + start_theta)))))
+
+
+def GenerateEye(center, reverse, offset, offset_step):
+    return itertools.chain(*([
+        CirclePoints(center, 24 * 2, offset, 8),
+        CirclePoints(center, 42 * 2, offset + offset_step, 12),
+        CirclePoints(center, 60 * 2, offset + 2 * offset_step, 16)
+    ][::(-1 if reverse else 1)]))
+
+
+def GeneratePadding(center, number):
+    return center + numpy.zeros((number, 2))
+
+
+def GenerateCenteredLine(center, pitch, width):
+    flipped = False
+    if width < 0:
+        flipped = True
+        width = -width
+    spaces = width - 1
+    for i in range(width):
+        if flipped:
+            yield center + (spaces / 2 - i) * pitch * numpy.array((1, 0))
+        else:
+            yield center - (spaces / 2 - i) * pitch * numpy.array((1, 0))
+
+
+def GenerateCenteredStack(bottom_center, pitch, widths):
+    return itertools.chain(*(
+        GenerateCenteredLine(bottom_center -
+                             n * pitch * numpy.array((0, 1)), pitch, widths[n])
+        for n in range(len(widths))))
+
+
+left_eye_center = numpy.array((200, 600))
+right_eye_center = numpy.array((475, 600))
+
+
+def GenerateLine(start_x, end_x, y, count):
+    for i in numpy.linspace(start_x, end_x, count):
+        yield numpy.array((i, y))
+
+def GenerateBook():
     for j in range(16):
         for i in range(16):
             if (j % 2) == 1:
                 i = 15 - i
-            coords.append((i * 40 + 100, j * 40 + 100))
-    return coords
+            yield numpy.array((i * 560 / 15 + 57.5, j * (737.694 - 100) / 15 + 80))
+
+
+def GenerateSampling():
+    squid_hat_size = len(
+        list(
+            GenerateCenteredStack(numpy.array((337.5, 400)), 40,
+                                  [15, -14, 13, -12, 10, -9, 7, -5, 4])))
+    return itertools.chain(
+        # Eyes on glasses
+        GenerateEye(left_eye_center, False, 1.5, 0),
+        GenerateEye(right_eye_center, True, 2.5, 2),
+        # Throwaway indices to get to next driver port starting at index 300
+        GeneratePadding(numpy.array((337.5, 450)), 300 - 72),
+        # Squid hat
+        GenerateCenteredStack(numpy.array((337.5, 400)), 40,
+                              [15, -14, 13, -12, 10, -9, 7, -5, 4]),
+        # Throwaway to get to next port at index 600
+        GeneratePadding(numpy.array((337.5, 450)), 300 - squid_hat_size),
+        GenerateLine(100, 575, 400, 163),
+        GenerateLine(100, 575, 300, 20),
+        GenerateLine(100, 575, 500, 20),
+        GeneratePadding(numpy.array((337.5, 450)), 300 - 163 - 40),
+        GenerateBook(),
+        GeneratePointsOfInterest()
+    )
 
 
 def GeneratePointsOfInterest():
-    return []
+    return [
+        left_eye_center,
+        right_eye_center,
+    ]

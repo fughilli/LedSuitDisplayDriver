@@ -194,7 +194,7 @@ class SpiImageBufferReceiver : public ImageBufferReceiverInterface {
     }
   }
 
-  constexpr static ssize_t kNumLeds = 900;
+  constexpr static ssize_t kNumLeds = 4 * 300;
   constexpr static ssize_t kLedChannels = 3;
   constexpr static ssize_t kLedBufferLength = kNumLeds * kLedChannels;
   constexpr static uint32_t kFlickerModulus = 0x3;
